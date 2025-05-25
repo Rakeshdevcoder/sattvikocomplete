@@ -1,0 +1,80 @@
+/* collectionhero.module.css */
+:root {
+  font-family: "CustomFont1", sans-serif;
+}
+.collectionHero {
+  position: relative;
+  display: flex;
+  justify-content: start;
+  padding: 50px;
+}
+
+.heroInner {
+  width: 100%;
+  max-width: 1200px;
+}
+
+.textWrapper {
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.title {
+  font-size: 3.5rem;
+  font-weight: 700;
+  margin-bottom: 1.5rem;
+  color: #333;
+  text-align: left;
+}
+
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+.description {
+  font-size: 1.5rem;
+  line-height: 1.6;
+  color: #444;
+}
+
+.description p {
+  margin-bottom: 2rem;
+}
+
+.description strong {
+  font-weight: 700;
+  color: #333;
+}
+
+.description em {
+  font-style: italic;
+}
+
+/* Responsive styles */
+@media (max-width: 768px) {
+  .title {
+    font-size: 2rem;
+  }
+
+  .description {
+    font-size: 1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .title {
+    font-size: 1.75rem;
+  }
+
+  .heroInner {
+    padding: 0 1rem;
+  }
+}

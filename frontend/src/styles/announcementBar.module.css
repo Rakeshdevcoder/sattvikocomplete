@@ -1,0 +1,41 @@
+/* Announcement Bar Styles */
+.announcementBar {
+  padding: 10px 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+}
+
+/* Color Variants */
+.colorInverse {
+  color: #fff;
+  background-color: #2e2a39;
+}
+
+/* Width Container */
+.pageWidth {
+  width: 100%;
+  min-width: 120rem;
+  margin: 0 auto;
+  padding: 0 1.5rem;
+}
+
+/* Message Styling */
+.announcementBarMessage {
+  margin: 0;
+  line-height: 1.4;
+  font-weight: 700;
+}
+
+/* Text Alignment */
+.center {
+  text-align: center;
+}
+
+/* Typography */
+.h5 {
+  font-family: "CustomFont2", sans-serif;
+  font-size: 1rem;
+  letter-spacing: 0.07em;
+}

@@ -1,0 +1,77 @@
+
+services:
+  auth-service:
+    build:
+      context: ./backend/auth-service
+      dockerfile: Dockerfile
+    image: auth-service:latest
+    env_file:
+      - ./backend/auth-service/config/.env
+    ports:
+      - "8080:8080"
+    networks:
+      - satviko-net
+
+  order-service:
+    build:
+      context: ./backend/order-service
+      dockerfile: Dockerfile
+    image: order-service:latest
+    env_file:
+      - ./backend/order-service/config/.env
+    ports:
+      - "8081:8081"
+    networks:
+      - satviko-net
+    depends_on:
+      - auth-service
+
+  product-service:
+    build:
+      context: ./backend/product-service
+      dockerfile: Dockerfile
+    image: product-service:latest
+    env_file:
+      - ./backend/product-service/config/.env
+    ports:
+      - "8082:8082"
+    networks:
+      - satviko-net
+    depends_on:
+      - auth-service
+
+  api-gateway:
+    build:
+      context: ./backend/api-gateway
+      dockerfile: Dockerfile
+    image: api-gateway:latest
+    env_file:
+      - ./backend/api-gateway/config/.env
+    ports:
+      - "8000:8000"
+    networks:
+      - satviko-net
+    depends_on:
+      - auth-service
+      - order-service
+      - product-service
+
+  # Krakend API Gateway
+  krakend:
+    image: krakend:2.9.4
+    container_name: krakend
+    volumes:
+      - ./krakend.json:/etc/krakend/krakend.json:ro
+    ports:
+      - "9090:8080" # ← host 9090 → container 8080
+    networks:
+      - satviko-net
+    depends_on:
+      - auth-service
+      - order-service
+      - product-service
+    command: ["run", "-d", "-c", "/etc/krakend/krakend.json"]
+
+networks:
+  satviko-net:
+    driver: bridge

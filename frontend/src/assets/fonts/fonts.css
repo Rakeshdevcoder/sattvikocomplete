@@ -1,0 +1,51 @@
+@font-face {
+  font-family: "CustomFont1";
+  src: url("./harmoniasans_n4.73cf0589f7839ec88463a09f5335a2885467ed0c30c0.woff2")
+    format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "CustomFont2";
+  src: url("./harmoniasans_n6.dd3d6084d29e4754e80fe6aa1c0e37f511474ffa6070.woff2")
+    format("woff2");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "CustomFont3";
+  src: url("./harmoniasans_n7.db6a243cdeddb2eba0b2e8fccdce1e6910fd06d09675.woff2")
+    format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "CustomFont4";
+  src: url("./harmoniasans_i4.ccbfea79fd847e76d49925a923aa89064359e629be23.woff2")
+    format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* CSS Variable to make it easier to use elsewhere */
+:root {
+  --font-custom: "CustomFont1", sans-serif;
+}
+
+/* Apply the font globally */
+html,
+body {
+  font-family: "CustomFont1", sans-serif;
+}
+
+/* Set it for all elements */
+* {
+  font-family: inherit;
+}
