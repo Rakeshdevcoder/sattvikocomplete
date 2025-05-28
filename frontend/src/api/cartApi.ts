@@ -6,6 +6,14 @@ export interface CartItem {
   quantity: number;
   image?: string | { main: string } | { main: string; hover: string };
   weight?: string;
+  isBundleItem?: boolean;
+  bundleId?: string; // For bundle items, reference to the bundle
+  originalPrice?: number; // Original price for bundle items
+  bundledProducts?: {
+    id: string;
+    title: string;
+    weight?: string;
+  }[];
 }
 
 export interface Cart {
@@ -40,18 +48,16 @@ export class CartApiClient {
     }
   }
 
-  // Add item to cart
-  // src/api/cartApi.ts (partial update to the addToCart method)
-
-  // src/api/cartApi.ts
-  // The addToCart method needs to properly handle the quantity parameter
-
+  // Add item to cart with support for bundle products
   async addToCart(productObject: any, quantity: number = 1): Promise<Cart> {
     try {
       // Extract product details
       const productId = productObject.id || "";
       const title = productObject.title || "Unknown Product";
       const price = parseFloat(productObject.price) || 0;
+      const isBundleItem = productObject.isBundleItem || false;
+      const bundleId = productObject.bundleId || "";
+      const originalPrice = productObject.originalPrice || price;
 
       // Get image from product format - improved handling of different image formats
       let image;
@@ -84,27 +90,47 @@ export class CartApiClient {
       // Get current cart
       const cart = await this.getCart();
 
-      // Check if product already exists in cart
-      const existingItemIndex = cart.items.findIndex(
-        (item) => item.productId === productId
-      );
-
-      if (existingItemIndex >= 0) {
-        // Update quantity of existing item
-        // ⚠️ Change this to replace the quantity instead of adding to it
-        // cart.items[existingItemIndex].quantity += quantity;
-        cart.items[existingItemIndex].quantity = quantity;
-      } else {
-        // Add new item
+      // For bundle items, add them as individual items with a bundle reference
+      if (isBundleItem) {
+        // Add as new item with bundle reference
         cart.items.push({
-          id: `item_${Date.now()}`,
+          id: `item_${Date.now()}_${Math.random()
+            .toString(36)
+            .substring(2, 9)}`,
           productId,
           title,
           price,
           quantity,
           image,
           weight,
+          isBundleItem,
+          bundleId,
+          originalPrice,
         });
+      } else {
+        // Regular product handling
+        // Check if product already exists in cart
+        const existingItemIndex = cart.items.findIndex(
+          (item) => item.productId === productId && !item.isBundleItem
+        );
+
+        if (existingItemIndex >= 0) {
+          // Update quantity of existing item
+          cart.items[existingItemIndex].quantity = quantity;
+        } else {
+          // Add as new item
+          cart.items.push({
+            id: `item_${Date.now()}_${Math.random()
+              .toString(36)
+              .substring(2, 9)}`,
+            productId,
+            title,
+            price,
+            quantity,
+            image,
+            weight,
+          });
+        }
       }
 
       // Update cart totals

@@ -364,6 +364,18 @@ const HeaderComponent: React.FC = () => {
             </ul>
           </li>
 
+          {/* New Bundle Discount Menu Item */}
+          <li className={styles.navItem}>
+            <a
+              href="/collections/bundle"
+              className={`${styles.navLink} ${styles.specialBundle} ${
+                activeNavItem === "/collections/bundle" ? styles.active : ""
+              }`}
+            >
+              Buy any 7 at 499
+            </a>
+          </li>
+
           <li className={styles.navItem}>
             <a
               href="/collections/all"
@@ -580,6 +592,18 @@ const HeaderComponent: React.FC = () => {
                     </a>
                   </li>
                 </ul>
+              </li>
+
+              {/* Mobile Bundle Menu Item */}
+              <li className={styles.mobileNavItem}>
+                <a
+                  href="/collections/bundle"
+                  className={`${styles.mobileNavLink} ${styles.specialBundle} ${
+                    activeNavItem === "/collections/bundle" ? styles.active : ""
+                  }`}
+                >
+                  Buy any 7 at 499
+                </a>
               </li>
 
               <li className={styles.mobileNavItem}>

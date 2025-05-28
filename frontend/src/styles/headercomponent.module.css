@@ -762,3 +762,214 @@
   font-weight: 500;
   color: #333;
 }
+/* Add these styles to your existing headercomponent.module.css file */
+
+/* Special Bundle Menu Item Styling */
+.specialBundle {
+  position: relative;
+  font-weight: 600;
+  color: #3b82f6 !important;
+  transition: all 0.3s ease;
+}
+
+.specialBundle:hover {
+  text-decoration: underline;
+}
+
+/* Mobile version */
+.mobileNavLink.specialBundle {
+  color: #3b82f6 !important;
+  font-weight: 600;
+}
+
+/* Add these styles to your headercomponent.module.css file */
+
+.bundleTitle {
+  display: flex;
+  align-items: center;
+  font-weight: 700;
+  color: #3b82f6;
+}
+
+.bundleItems {
+  margin-top: 6px;
+  margin-bottom: 10px;
+  background-color: #f7f9ff;
+  border-radius: 6px;
+  padding: 8px 10px;
+  border: 1px solid #e5efff;
+}
+
+.bundleItemsTitle {
+  font-size: 0.75rem;
+  color: #3b82f6;
+  margin: 0 0 5px 0;
+  font-weight: 600;
+}
+
+.bundleItemsList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  font-size: 0.75rem;
+  color: #666;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 4px;
+  max-height: 100px;
+  overflow-y: auto;
+}
+
+.bundleItem {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 2px 0;
+}
+
+.bundleItem::before {
+  content: "•";
+  margin-right: 4px;
+  color: #3b82f6;
+}
+
+@media (max-width: 480px) {
+  .bundleItemsList {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Add these styles to your headercomponent.module.css file */
+
+/* Bundle notification styles */
+.bundleTitle {
+  display: flex;
+  align-items: center;
+  font-weight: 700;
+  color: #3b82f6;
+}
+
+.bundleItems {
+  margin-top: 6px;
+  margin-bottom: 10px;
+  background-color: #f7f9ff;
+  border-radius: 6px;
+  padding: 8px 10px;
+  border: 1px solid #e5efff;
+}
+
+.bundleItemsTitle {
+  font-size: 0.75rem;
+  color: #3b82f6;
+  margin: 0 0 5px 0;
+  font-weight: 600;
+}
+
+.bundleItemsList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  font-size: 0.75rem;
+  color: #666;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 4px;
+  max-height: 100px;
+  overflow-y: auto;
+}
+
+.bundleItem {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 2px 0;
+}
+
+.bundleItem::before {
+  content: "•";
+  margin-right: 4px;
+  color: #3b82f6;
+}
+
+/* Bundle group styles in cart */
+.bundleGroup {
+  margin-bottom: 10px;
+  border-bottom: 1px dashed #e0e0e0;
+  padding-bottom: 10px;
+}
+
+.bundleGroupHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 15px;
+  background-color: #f0f7ff;
+  border-radius: 4px;
+  margin-bottom: 10px;
+}
+
+.bundleGroupTitle {
+  display: flex;
+  align-items: center;
+  font-weight: 600;
+  color: #3b82f6;
+  font-size: 0.85rem;
+}
+
+.bundleGroupSavings {
+  font-size: 0.75rem;
+  color: #10b981;
+  display: flex;
+  align-items: center;
+  font-weight: 600;
+}
+
+.bundleCartItem {
+  position: relative;
+  border-left: 3px solid #3b82f6;
+  padding-left: 12px;
+  background-color: #fafcff;
+}
+
+.bundleItemBadge {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  background-color: #3b82f6;
+  color: white;
+  font-size: 0.6rem;
+  padding: 2px 6px;
+  border-radius: 10px;
+  font-weight: 600;
+}
+
+.bundleItemPricing {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 5px 0;
+}
+
+.bundleItemOriginalPrice {
+  font-size: 0.8rem;
+  color: #888;
+  text-decoration: line-through;
+}
+
+.bundleItemDiscountedPrice {
+  font-size: 0.9rem;
+  color: #10b981;
+  font-weight: 600;
+}
+
+@media (max-width: 480px) {
+  .bundleItemsList {
+    grid-template-columns: 1fr;
+  }
+
+  .bundleGroupHeader {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+}

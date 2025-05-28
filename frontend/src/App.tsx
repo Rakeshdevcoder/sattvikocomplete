@@ -22,6 +22,7 @@ import OrderSuccessPage from "./pages/OrderSuccessPage";
 import Footer from "./components/FooterComponent";
 import AllProduct from "./pages/AllProduct";
 import ProductDetail from "./pages/ProductDetail";
+import BundlePage from "./pages/BundlePage";
 
 // Get Clerk publishable key from environment variables
 const publishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY || "";
@@ -63,6 +64,7 @@ const App = () => {
               />
               <Route path="/collections/high-fibre" element={<HighFibre />} />
               <Route path="/collections/all" element={<AllProduct />} />
+              <Route path="/collections/bundle" element={<BundlePage />} />
 
               {/* Protected routes that require authentication */}
               <Route

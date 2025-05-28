@@ -1,13 +1,46 @@
 // src/components/CartSidebar.tsx
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useCart } from "../context/CartContext";
 import styles from "../styles/headercomponent.module.css";
-import { FiX, FiShoppingCart, FiMinus, FiPlus, FiTrash2 } from "react-icons/fi";
+import {
+  FiX,
+  FiShoppingCart,
+  FiMinus,
+  FiPlus,
+  FiTrash2,
+  FiPackage,
+  FiTag,
+} from "react-icons/fi";
 import { useAuth } from "@clerk/clerk-react";
 import { Link } from "react-router-dom";
 
 // Define a type for the possible image formats
 type ImageType = string | { main: string } | { main: string; hover: string };
+
+// Define type for bundled products
+interface BundledProduct {
+  id: string;
+  title: string;
+  weight?: string;
+}
+
+// Extended CartItem to include both bundle types
+interface ExtendedCartItem {
+  id: string;
+  productId: string;
+  title: string;
+  price: number;
+  quantity: number;
+  image?: ImageType;
+  weight?: string;
+  // Bundle as single item properties
+  isBundle?: boolean;
+  bundledProducts?: BundledProduct[];
+  // Bundle as separate items properties
+  isBundleItem?: boolean;
+  bundleId?: string;
+  originalPrice?: number;
+}
 
 const CartSidebar: React.FC = () => {
   const {
@@ -23,6 +56,31 @@ const CartSidebar: React.FC = () => {
 
   // State for quantity updates
   const [updatingItemId, setUpdatingItemId] = useState<string | null>(null);
+
+  // Group bundle items for display
+  const [bundleGroups, setBundleGroups] = useState<
+    Record<string, ExtendedCartItem[]>
+  >({});
+
+  // Organize bundle items for display
+  useEffect(() => {
+    if (cart && cart.items) {
+      const groups: Record<string, ExtendedCartItem[]> = {};
+
+      // Group items by bundleId
+      cart.items.forEach((item) => {
+        const extendedItem = item as ExtendedCartItem;
+        if (extendedItem.isBundleItem && extendedItem.bundleId) {
+          if (!groups[extendedItem.bundleId]) {
+            groups[extendedItem.bundleId] = [];
+          }
+          groups[extendedItem.bundleId].push(extendedItem);
+        }
+      });
+
+      setBundleGroups(groups);
+    }
+  }, [cart]);
 
   // Handle quantity changes
   const handleQuantityChange = async (itemId: string, newQuantity: number) => {
@@ -57,6 +115,35 @@ const CartSidebar: React.FC = () => {
 
     // Fallback to placeholder
     return "https://via.placeholder.com/80x80?text=Product";
+  };
+
+  // Function to check if an item is part of a bundle (separate items)
+  const isBundleItem = (item: ExtendedCartItem): boolean => {
+    return !!item.isBundleItem && !!item.bundleId;
+  };
+
+  // Function to check if an item is a bundle (single item)
+  const isBundle = (item: ExtendedCartItem): boolean => {
+    return !!item.isBundle;
+  };
+
+  // Function to get original total of a bundle
+  const getBundleOriginalTotal = (bundleId: string): number => {
+    const bundleItems = bundleGroups[bundleId] || [];
+    return bundleItems.reduce(
+      (total, item) =>
+        total + (item.originalPrice || item.price) * item.quantity,
+      0
+    );
+  };
+
+  // Function to get actual total of a bundle
+  const getBundleActualTotal = (bundleId: string): number => {
+    const bundleItems = bundleGroups[bundleId] || [];
+    return bundleItems.reduce(
+      (total, item) => total + item.price * item.quantity,
+      0
+    );
   };
 
   return (
@@ -118,81 +205,244 @@ const CartSidebar: React.FC = () => {
             </div>
           ) : (
             <>
-              {/* Cart items */}
-              {cart.items.map((item) => (
-                <div key={item.id} className={styles.cartItem}>
-                  {/* Item image */}
-                  <div className={styles.cartItemImage}>
-                    <img
-                      src={getImageUrl(item.image)}
-                      alt={item.title}
-                      onError={(e) => {
-                        // Fallback image if the main one fails to load
-                        e.currentTarget.src =
-                          "https://via.placeholder.com/80x80?text=Product";
-                      }}
-                    />
+              {/* Display Bundle Groups first (separate items) */}
+              {Object.keys(bundleGroups).map((bundleId) => {
+                const bundleItems = bundleGroups[bundleId];
+                const originalTotal = getBundleOriginalTotal(bundleId);
+                const actualTotal = getBundleActualTotal(bundleId);
+                const discount = originalTotal - actualTotal;
+
+                return (
+                  <div key={bundleId} className={styles.bundleGroup}>
+                    <div className={styles.bundleGroupHeader}>
+                      <div className={styles.bundleGroupTitle}>
+                        <FiPackage size={16} style={{ marginRight: "8px" }} />
+                        Bundle Discount
+                      </div>
+                      <div className={styles.bundleGroupSavings}>
+                        <FiTag size={14} style={{ marginRight: "4px" }} />
+                        You save ₹{discount.toFixed(2)}
+                      </div>
+                    </div>
+
+                    {bundleItems.map((item) => (
+                      <div
+                        key={item.id}
+                        className={`${styles.cartItem} ${styles.bundleCartItem}`}
+                      >
+                        {/* Item image */}
+                        <div className={styles.cartItemImage}>
+                          <img
+                            src={getImageUrl(item.image)}
+                            alt={item.title}
+                            onError={(e) => {
+                              e.currentTarget.src =
+                                "https://via.placeholder.com/80x80?text=Product";
+                            }}
+                          />
+                          <div className={styles.bundleItemBadge}>
+                            <span>Bundle</span>
+                          </div>
+                        </div>
+
+                        {/* Item details */}
+                        <div className={styles.cartItemDetails}>
+                          <h4 className={styles.cartItemTitle}>
+                            {item.title}
+                            {item.weight && (
+                              <span className={styles.cartItemWeight}>
+                                {" "}
+                                {item.weight}
+                              </span>
+                            )}
+                          </h4>
+
+                          <div className={styles.bundleItemPricing}>
+                            <span className={styles.bundleItemOriginalPrice}>
+                              ₹{(item.originalPrice || item.price).toFixed(2)}
+                            </span>
+                            <span className={styles.bundleItemDiscountedPrice}>
+                              ₹{item.price.toFixed(2)}
+                            </span>
+                          </div>
+
+                          {/* Quantity controls */}
+                          <div className={styles.cartItemControls}>
+                            <div className={styles.quantityControl}>
+                              <button
+                                className={styles.quantityButton}
+                                onClick={() =>
+                                  handleQuantityChange(
+                                    item.id,
+                                    item.quantity - 1
+                                  )
+                                }
+                                disabled={
+                                  updatingItemId === item.id ||
+                                  item.quantity <= 1
+                                }
+                                aria-label="Decrease quantity"
+                              >
+                                <FiMinus size={14} />
+                              </button>
+                              <input
+                                type="text"
+                                className={styles.quantityInput}
+                                value={item.quantity}
+                                readOnly
+                              />
+                              <button
+                                className={styles.quantityButton}
+                                onClick={() =>
+                                  handleQuantityChange(
+                                    item.id,
+                                    item.quantity + 1
+                                  )
+                                }
+                                disabled={updatingItemId === item.id}
+                                aria-label="Increase quantity"
+                              >
+                                <FiPlus size={14} />
+                              </button>
+                            </div>
+
+                            {/* Remove button */}
+                            <button
+                              className={styles.removeButton}
+                              onClick={() => handleRemoveItem(item.id)}
+                              disabled={updatingItemId === item.id}
+                            >
+                              <FiTrash2 size={14} className={styles.icon} />
+                              Remove
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
                   </div>
+                );
+              })}
 
-                  {/* Item details */}
-                  <div className={styles.cartItemDetails}>
-                    <h4 className={styles.cartItemTitle}>
-                      {item.title}
-                      {item.weight && (
-                        <span className={styles.cartItemWeight}>
-                          {" "}
-                          {item.weight}
-                        </span>
-                      )}
-                    </h4>
-                    <p className={styles.cartItemPrice}>Rs. {item.price}</p>
+              {/* Regular items and single bundle items */}
+              {cart.items
+                .filter((item) => {
+                  const extendedItem = item as ExtendedCartItem;
+                  return !isBundleItem(extendedItem);
+                })
+                .map((item) => {
+                  const extendedItem = item as ExtendedCartItem;
+                  const isSingleBundle = isBundle(extendedItem);
 
-                    {/* Quantity controls */}
-                    <div className={styles.cartItemControls}>
-                      <div className={styles.quantityControl}>
-                        <button
-                          className={styles.quantityButton}
-                          onClick={() =>
-                            handleQuantityChange(item.id, item.quantity - 1)
-                          }
-                          disabled={
-                            updatingItemId === item.id || item.quantity <= 1
-                          }
-                          aria-label="Decrease quantity"
-                        >
-                          <FiMinus size={14} />
-                        </button>
-                        <input
-                          type="text"
-                          className={styles.quantityInput}
-                          value={item.quantity}
-                          readOnly
+                  return (
+                    <div key={item.id} className={styles.cartItem}>
+                      {/* Item image */}
+                      <div className={styles.cartItemImage}>
+                        <img
+                          src={getImageUrl(item.image)}
+                          alt={item.title}
+                          onError={(e) => {
+                            e.currentTarget.src =
+                              "https://via.placeholder.com/80x80?text=Product";
+                          }}
                         />
-                        <button
-                          className={styles.quantityButton}
-                          onClick={() =>
-                            handleQuantityChange(item.id, item.quantity + 1)
-                          }
-                          disabled={updatingItemId === item.id}
-                          aria-label="Increase quantity"
-                        >
-                          <FiPlus size={14} />
-                        </button>
                       </div>
 
-                      {/* Remove button */}
-                      <button
-                        className={styles.removeButton}
-                        onClick={() => handleRemoveItem(item.id)}
-                        disabled={updatingItemId === item.id}
-                      >
-                        <FiTrash2 size={14} className={styles.icon} />
-                        Remove
-                      </button>
+                      {/* Item details */}
+                      <div className={styles.cartItemDetails}>
+                        <h4 className={styles.cartItemTitle}>
+                          {isSingleBundle ? (
+                            <span className={styles.bundleTitle}>
+                              <FiPackage
+                                size={14}
+                                style={{ marginRight: "6px" }}
+                              />
+                              7-Product Bundle
+                            </span>
+                          ) : (
+                            item.title
+                          )}
+                          {item.weight && !isSingleBundle && (
+                            <span className={styles.cartItemWeight}>
+                              {" "}
+                              {item.weight}
+                            </span>
+                          )}
+                        </h4>
+
+                        {/* Bundle items list for single bundles */}
+                        {isSingleBundle && extendedItem.bundledProducts && (
+                          <div className={styles.bundleItems}>
+                            <p className={styles.bundleItemsTitle}>
+                              Bundle includes:
+                            </p>
+                            <ul className={styles.bundleItemsList}>
+                              {extendedItem.bundledProducts.map(
+                                (bundledProduct, index) => (
+                                  <li
+                                    key={`${bundledProduct.id}-${index}`}
+                                    className={styles.bundleItem}
+                                  >
+                                    {bundledProduct.title}
+                                    {bundledProduct.weight &&
+                                      ` (${bundledProduct.weight})`}
+                                  </li>
+                                )
+                              )}
+                            </ul>
+                          </div>
+                        )}
+
+                        <p className={styles.cartItemPrice}>
+                          ₹{item.price.toFixed(2)}
+                        </p>
+
+                        {/* Quantity controls */}
+                        <div className={styles.cartItemControls}>
+                          <div className={styles.quantityControl}>
+                            <button
+                              className={styles.quantityButton}
+                              onClick={() =>
+                                handleQuantityChange(item.id, item.quantity - 1)
+                              }
+                              disabled={
+                                updatingItemId === item.id || item.quantity <= 1
+                              }
+                              aria-label="Decrease quantity"
+                            >
+                              <FiMinus size={14} />
+                            </button>
+                            <input
+                              type="text"
+                              className={styles.quantityInput}
+                              value={item.quantity}
+                              readOnly
+                            />
+                            <button
+                              className={styles.quantityButton}
+                              onClick={() =>
+                                handleQuantityChange(item.id, item.quantity + 1)
+                              }
+                              disabled={updatingItemId === item.id}
+                              aria-label="Increase quantity"
+                            >
+                              <FiPlus size={14} />
+                            </button>
+                          </div>
+
+                          {/* Remove button */}
+                          <button
+                            className={styles.removeButton}
+                            onClick={() => handleRemoveItem(item.id)}
+                            disabled={updatingItemId === item.id}
+                          >
+                            <FiTrash2 size={14} className={styles.icon} />
+                            Remove
+                          </button>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </div>
-              ))}
+                  );
+                })}
             </>
           )}
         </div>
@@ -203,7 +453,7 @@ const CartSidebar: React.FC = () => {
             {/* Subtotal */}
             <div className={styles.subtotal}>
               <span>Subtotal</span>
-              <span>Rs. {cart.subtotal}</span>
+              <span>₹{cart.subtotal.toFixed(2)}</span>
             </div>
 
             {/* Checkout button - only show login prompt if not signed in */}
