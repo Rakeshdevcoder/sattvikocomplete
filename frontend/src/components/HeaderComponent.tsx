@@ -1,5 +1,5 @@
 // HeaderComponent.tsx
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, createContext } from "react";
 import styles from "../styles/headercomponent.module.css";
 import {
   SignedIn,
@@ -20,6 +20,32 @@ import {
   FiShoppingCart,
 } from "react-icons/fi";
 
+// Define a type for the bundle product
+interface BundleProduct {
+  id: string;
+  title?: string;
+  price?: string;
+  images?: {
+    main: string;
+    hover?: string;
+  };
+  image?: string;
+  weight?: string;
+}
+
+// Create a context for bundle selection with proper typing
+interface BundleContextType {
+  selectedProducts: BundleProduct[];
+  remainingItems: number;
+  setSelectedProducts: (products: BundleProduct[]) => void;
+}
+
+export const BundleContext = createContext<BundleContextType>({
+  selectedProducts: [],
+  remainingItems: 7,
+  setSelectedProducts: () => null,
+});
+
 const HeaderComponent: React.FC = () => {
   const [shopMenuOpen, setShopMenuOpen] = useState(false);
   const [featuresMenuOpen, setFeaturesMenuOpen] = useState(false);
@@ -29,11 +55,31 @@ const HeaderComponent: React.FC = () => {
   const [isMobile, setIsMobile] = useState(false);
   const [activeNavItem, setActiveNavItem] = useState("/"); // Track active nav item
 
+  // Get bundle context from localStorage or create empty array
+  const [selectedBundleProducts, setSelectedBundleProducts] = useState<
+    BundleProduct[]
+  >(() => {
+    const saved = localStorage.getItem("selectedBundleProducts");
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  // Calculate remaining items
+  const bundleLimit = 7;
+  const remainingItems = bundleLimit - selectedBundleProducts.length;
+
   // Get auth status from Clerk
   const { isSignedIn } = useAuth();
 
   // Get cart context
   const { cartCount, toggleCart } = useCart();
+
+  // Save selected bundle products to localStorage when it changes
+  useEffect(() => {
+    localStorage.setItem(
+      "selectedBundleProducts",
+      JSON.stringify(selectedBundleProducts)
+    );
+  }, [selectedBundleProducts]);
 
   // Check if mobile view
   useEffect(() => {
@@ -94,572 +140,75 @@ const HeaderComponent: React.FC = () => {
   };
 
   return (
-    <header className={styles.headerContainer}>
-      <div className={styles.headerMain}>
-        {/* Left section - Search or Hamburger */}
-        <div className={styles.headerIconContainer}>
-          {isMobile ? (
-            <button
-              className={`${styles.iconButton} ${styles.menuToggle}`}
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              aria-label="Toggle menu"
-            >
-              <FiMenu className={styles.icon} />
-            </button>
-          ) : (
-            <button className={styles.iconButton}>
-              <FiSearch className={styles.icon} />
-            </button>
-          )}
-        </div>
-
-        {/* Logo in center */}
-        <div className={styles.headerLogo}>
-          <a href="/">
-            <img
-              src="https://sattviko.com/cdn/shop/files/logo_foodyoga.png?v=1685712767"
-              alt="Sattviko"
-              width="170"
-              height="56"
-            />
-          </a>
-        </div>
-
-        {/* Right section - User (Desktop) / Search (Mobile) & Cart Icon */}
-        <div className={styles.headerActions}>
-          {/* Cart Icon - Always visible */}
-          <button
-            className={`${styles.iconButton} ${styles.cartButton}`}
-            onClick={toggleCart}
-            aria-label="Open cart"
-          >
-            <FiShoppingCart className={styles.icon} />
-            {cartCount > 0 && (
-              <span className={styles.cartCount}>{cartCount}</span>
+    <BundleContext.Provider
+      value={{
+        selectedProducts: selectedBundleProducts,
+        remainingItems,
+        setSelectedProducts: setSelectedBundleProducts,
+      }}
+    >
+      <header className={styles.headerContainer}>
+        <div className={styles.headerMain}>
+          {/* Left section - Search or Hamburger */}
+          <div className={styles.headerIconContainer}>
+            {isMobile ? (
+              <button
+                className={`${styles.iconButton} ${styles.menuToggle}`}
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                aria-label="Toggle menu"
+              >
+                <FiMenu className={styles.icon} />
+              </button>
+            ) : (
+              <button className={styles.iconButton}>
+                <FiSearch className={styles.icon} />
+              </button>
             )}
-          </button>
-
-          {isMobile ? (
-            <button className={styles.iconButton} aria-label="Search">
-              <FiSearch className={styles.icon} />
-            </button>
-          ) : (
-            // Clerk authentication components
-            <>
-              <SignedOut>
-                <SignInButton mode="modal">
-                  <button className={styles.iconButton} aria-label="Sign in">
-                    <FiUser className={styles.icon} />
-                  </button>
-                </SignInButton>
-              </SignedOut>
-
-              <SignedIn>
-                <div className={styles.iconButton}>
-                  <UserButton
-                    userProfileMode="modal"
-                    afterSignOutUrl="/"
-                    appearance={{
-                      elements: {
-                        userButtonAvatarBox: {
-                          width: "24px",
-                          height: "24px",
-                        },
-                        userButtonTrigger: {
-                          padding: "0",
-                          margin: "0",
-                        },
-                      },
-                    }}
-                  />
-                </div>
-              </SignedIn>
-            </>
-          )}
-        </div>
-      </div>
-
-      {/* Navigation Menu - Desktop */}
-      <nav
-        className={`${styles.headerNavigation} ${
-          isMobile ? styles.hidden : ""
-        }`}
-      >
-        <ul className={styles.navMenu}>
-          <li className={styles.navItem}>
-            <a
-              href="/"
-              className={`${styles.navLink} ${
-                activeNavItem === "/" ? styles.active : ""
-              }`}
-            >
-              Home
-            </a>
-          </li>
-          <li className={`${styles.navItem} ${styles.dropdown}`}>
-            <button
-              className={`${styles.navLink} ${styles.dropdownToggle} ${
-                activeNavItem.includes("/collections/") &&
-                !activeNavItem.includes("features")
-                  ? styles.active
-                  : ""
-              }`}
-              onClick={toggleShopMenu}
-              aria-expanded={shopMenuOpen}
-            >
-              Shop
-              <FiChevronDown
-                className={`${styles.dropdownArrow} ${
-                  shopMenuOpen ? styles.rotate : ""
-                }`}
-              />
-            </button>
-            <ul
-              className={`${styles.dropdownMenu} ${
-                shopMenuOpen ? styles.open : ""
-              }`}
-            >
-              <li>
-                <a
-                  href="/collections/makhanas"
-                  className={
-                    activeNavItem === "/collections/makhanas"
-                      ? styles.active
-                      : ""
-                  }
-                >
-                  Makhanas
-                </a>
-              </li>
-              <li>
-                <a
-                  href="/collections/millet-puffs"
-                  className={
-                    activeNavItem === "/collections/millet-puffs"
-                      ? styles.active
-                      : ""
-                  }
-                >
-                  Millet Puffs
-                </a>
-              </li>
-              <li>
-                <a
-                  href="/collections/instant-meals"
-                  className={
-                    activeNavItem === "/collections/instant-meals"
-                      ? styles.active
-                      : ""
-                  }
-                >
-                  Instant Meals
-                </a>
-              </li>
-              <li>
-                <a
-                  href="/collections/trail-mix"
-                  className={
-                    activeNavItem === "/collections/trail-mix"
-                      ? styles.active
-                      : ""
-                  }
-                >
-                  Trail Mix
-                </a>
-              </li>
-              <li>
-                <a
-                  href="/collections/nutritious-nuts"
-                  className={
-                    activeNavItem === "/collections/nutritious-nuts"
-                      ? styles.active
-                      : ""
-                  }
-                >
-                  Nutritious Nuts
-                </a>
-              </li>
-              <li>
-                <a
-                  href="/collections/makhana-combo-packs"
-                  className={
-                    activeNavItem === "/collections/makhana-combo-packs"
-                      ? styles.active
-                      : ""
-                  }
-                >
-                  Combo Packs
-                </a>
-              </li>
-            </ul>
-          </li>
-          <li className={`${styles.navItem} ${styles.dropdown}`}>
-            <button
-              className={`${styles.navLink} ${styles.dropdownToggle} ${
-                activeNavItem.includes("features") ? styles.active : ""
-              }`}
-              onClick={toggleFeaturesMenu}
-              aria-expanded={featuresMenuOpen}
-            >
-              Shop by Features
-              <FiChevronDown
-                className={`${styles.dropdownArrow} ${
-                  featuresMenuOpen ? styles.rotate : ""
-                }`}
-              />
-            </button>
-            <ul
-              className={`${styles.dropdownMenu} ${
-                featuresMenuOpen ? styles.open : ""
-              }`}
-            >
-              <li>
-                <a
-                  href="/collections/high-protein"
-                  className={
-                    activeNavItem === "/collections/high-protein"
-                      ? styles.active
-                      : ""
-                  }
-                >
-                  High Protein
-                </a>
-              </li>
-              <li>
-                <a
-                  href="/collections/gluten-free"
-                  className={
-                    activeNavItem === "/collections/gluten-free"
-                      ? styles.active
-                      : ""
-                  }
-                >
-                  Gluten Free
-                </a>
-              </li>
-              <li>
-                <a
-                  href="/collections/high-fibre"
-                  className={
-                    activeNavItem === "/collections/high-fibre"
-                      ? styles.active
-                      : ""
-                  }
-                >
-                  High Fiber
-                </a>
-              </li>
-              <li>
-                <a
-                  href="/collections/probiotics"
-                  className={
-                    activeNavItem === "/collections/probiotics"
-                      ? styles.active
-                      : ""
-                  }
-                >
-                  Good for Gut Health
-                </a>
-              </li>
-            </ul>
-          </li>
-
-          {/* New Bundle Discount Menu Item */}
-          <li className={styles.navItem}>
-            <a
-              href="/collections/bundle"
-              className={`${styles.navLink} ${styles.specialBundle} ${
-                activeNavItem === "/collections/bundle" ? styles.active : ""
-              }`}
-            >
-              Buy any 7 at 499
-            </a>
-          </li>
-
-          <li className={styles.navItem}>
-            <a
-              href="/collections/all"
-              className={`${styles.navLink} ${
-                activeNavItem === "/collections/all" ? styles.active : ""
-              }`}
-            >
-              All Snacks
-            </a>
-          </li>
-
-          <li className={styles.navItem}>
-            <a href="https://foodyoga.shop/" className={styles.navLink}>
-              USA Website
-            </a>
-          </li>
-        </ul>
-      </nav>
-
-      {/* Mobile Menu */}
-      {isMobile && (
-        <div
-          className={`${styles.mobileMenu} ${
-            mobileMenuOpen ? styles.mobileMenuOpen : ""
-          }`}
-        >
-          {/* Mobile menu header with close button */}
-          <div className={styles.mobileMenuHeader}>
-            <button
-              className={styles.closeMenuButton}
-              onClick={closeMobileMenu}
-              aria-label="Close menu"
-            >
-              <FiX className={styles.icon} />
-            </button>
           </div>
 
-          <nav className={styles.mobileNavigation}>
-            <ul className={styles.mobileNavMenu}>
-              <li className={styles.mobileNavItem}>
-                <a
-                  href="/"
-                  className={`${styles.mobileNavLink} ${
-                    activeNavItem === "/" ? styles.active : ""
-                  }`}
-                >
-                  Home
-                </a>
-              </li>
+          {/* Logo in center */}
+          <div className={styles.headerLogo}>
+            <a href="/">
+              <img
+                src="https://sattviko.com/cdn/shop/files/logo_foodyoga.png?v=1685712767"
+                alt="Sattviko"
+                width="170"
+                height="56"
+              />
+            </a>
+          </div>
 
-              {/* Mobile Shop Dropdown */}
-              <li
-                className={`${styles.mobileNavItem} ${styles.mobileDropdown}`}
-              >
-                <button
-                  className={styles.mobileDropdownToggle}
-                  onClick={toggleMobileShopMenu}
-                  aria-expanded={mobileShopOpen}
-                >
-                  Shop
-                  <FiChevronDown
-                    className={`${styles.mobileDropdownArrow} ${
-                      mobileShopOpen ? styles.rotate : ""
-                    }`}
-                  />
-                </button>
-                <ul
-                  className={`${styles.mobileDropdownMenu} ${
-                    mobileShopOpen ? styles.mobileDropdownMenuOpen : ""
-                  }`}
-                >
-                  <li>
-                    <a
-                      href="/collections/makhanas"
-                      className={
-                        activeNavItem === "/collections/makhanas"
-                          ? styles.active
-                          : ""
-                      }
-                    >
-                      Makhanas
-                    </a>
-                  </li>
-                  <li>
-                    <a
-                      href="/collections/millet-puffs"
-                      className={
-                        activeNavItem === "/collections/millet-puffs"
-                          ? styles.active
-                          : ""
-                      }
-                    >
-                      Millet Puffs
-                    </a>
-                  </li>
-                  <li>
-                    <a
-                      href="/collections/instant-meals"
-                      className={
-                        activeNavItem === "/collections/instant-meals"
-                          ? styles.active
-                          : ""
-                      }
-                    >
-                      Instant Meals
-                    </a>
-                  </li>
-                  <li>
-                    <a
-                      href="/collections/trail-mix"
-                      className={
-                        activeNavItem === "/collections/trail-mix"
-                          ? styles.active
-                          : ""
-                      }
-                    >
-                      Trail Mix
-                    </a>
-                  </li>
-                  <li>
-                    <a
-                      href="/collections/nutritious-nuts"
-                      className={
-                        activeNavItem === "/collections/nutritious-nuts"
-                          ? styles.active
-                          : ""
-                      }
-                    >
-                      Nutritious Nuts
-                    </a>
-                  </li>
-                  <li>
-                    <a
-                      href="/collections/makhana-combo-packs"
-                      className={
-                        activeNavItem === "/collections/makhana-combo-packs"
-                          ? styles.active
-                          : ""
-                      }
-                    >
-                      Combo Packs
-                    </a>
-                  </li>
-                </ul>
-              </li>
+          {/* Right section - User (Desktop) / Search (Mobile) & Cart Icon */}
+          <div className={styles.headerActions}>
+            {/* Cart Icon - Always visible */}
+            <button
+              className={`${styles.iconButton} ${styles.cartButton}`}
+              onClick={toggleCart}
+              aria-label="Open cart"
+            >
+              <FiShoppingCart className={styles.icon} />
+              {cartCount > 0 && (
+                <span className={styles.cartCount}>{cartCount}</span>
+              )}
+            </button>
 
-              {/* Mobile Features Dropdown */}
-              <li
-                className={`${styles.mobileNavItem} ${styles.mobileDropdown}`}
-              >
-                <button
-                  className={styles.mobileDropdownToggle}
-                  onClick={toggleMobileFeaturesMenu}
-                  aria-expanded={mobileFeaturesOpen}
-                >
-                  Shop by Features
-                  <FiChevronDown
-                    className={`${styles.mobileDropdownArrow} ${
-                      mobileFeaturesOpen ? styles.rotate : ""
-                    }`}
-                  />
-                </button>
-                <ul
-                  className={`${styles.mobileDropdownMenu} ${
-                    mobileFeaturesOpen ? styles.mobileDropdownMenuOpen : ""
-                  }`}
-                >
-                  <li>
-                    <a
-                      href="/collections/high-protein"
-                      className={
-                        activeNavItem === "/collections/high-protein"
-                          ? styles.active
-                          : ""
-                      }
-                    >
-                      High Protein
-                    </a>
-                  </li>
-                  <li>
-                    <a
-                      href="/collections/gluten-free"
-                      className={
-                        activeNavItem === "/collections/gluten-free"
-                          ? styles.active
-                          : ""
-                      }
-                    >
-                      Gluten Free
-                    </a>
-                  </li>
-                  <li>
-                    <a
-                      href="/collections/high-fiber"
-                      className={
-                        activeNavItem === "/collections/high-fiber"
-                          ? styles.active
-                          : ""
-                      }
-                    >
-                      High Fiber
-                    </a>
-                  </li>
-                  <li>
-                    <a
-                      href="/collections/probiotics"
-                      className={
-                        activeNavItem === "/collections/probiotics"
-                          ? styles.active
-                          : ""
-                      }
-                    >
-                      Good for Gut Health
-                    </a>
-                  </li>
-                </ul>
-              </li>
-
-              {/* Mobile Bundle Menu Item */}
-              <li className={styles.mobileNavItem}>
-                <a
-                  href="/collections/bundle"
-                  className={`${styles.mobileNavLink} ${styles.specialBundle} ${
-                    activeNavItem === "/collections/bundle" ? styles.active : ""
-                  }`}
-                >
-                  Buy any 7 at 499
-                </a>
-              </li>
-
-              <li className={styles.mobileNavItem}>
-                <a
-                  href="/collections/all"
-                  className={`${styles.mobileNavLink} ${
-                    activeNavItem === "/collections/all" ? styles.active : ""
-                  }`}
-                >
-                  All Snacks
-                </a>
-              </li>
-
-              <li className={styles.mobileNavItem}>
-                <a
-                  href="https://foodyoga.shop/"
-                  className={styles.mobileNavLink}
-                >
-                  USA Website
-                </a>
-              </li>
-
-              {/* Cart button in mobile menu */}
-              <li className={styles.mobileNavItem}>
-                <button
-                  className={`${styles.mobileNavLink} ${styles.mobileCartButton}`}
-                  onClick={() => {
-                    toggleCart();
-                    closeMobileMenu();
-                  }}
-                >
-                  <FiShoppingCart className={styles.icon} />
-                  <span>Cart</span>
-                  {cartCount > 0 && (
-                    <span className={styles.mobileCartCount}>{cartCount}</span>
-                  )}
-                </button>
-              </li>
-
-              {/* Mobile account menu with Clerk integration */}
-              <li className={`${styles.mobileNavItem} ${styles.accountLink}`}>
+            {isMobile ? (
+              <button className={styles.iconButton} aria-label="Search">
+                <FiSearch className={styles.icon} />
+              </button>
+            ) : (
+              // Clerk authentication components
+              <>
                 <SignedOut>
                   <SignInButton mode="modal">
-                    <button
-                      className={`${styles.mobileNavLink} ${styles.mobileAuthButton}`}
-                    >
+                    <button className={styles.iconButton} aria-label="Sign in">
                       <FiUser className={styles.icon} />
-                      Sign In / Register
                     </button>
                   </SignInButton>
                 </SignedOut>
 
                 <SignedIn>
-                  <div
-                    className={`${styles.mobileNavLink} ${styles.mobileAuthButton}`}
-                  >
+                  <div className={styles.iconButton}>
                     <UserButton
                       userProfileMode="modal"
                       afterSignOutUrl="/"
@@ -668,20 +217,609 @@ const HeaderComponent: React.FC = () => {
                           userButtonAvatarBox: {
                             width: "24px",
                             height: "24px",
-                            marginRight: "8px",
+                          },
+                          userButtonTrigger: {
+                            padding: "0",
+                            margin: "0",
                           },
                         },
                       }}
                     />
-                    <span>My Account</span>
                   </div>
                 </SignedIn>
-              </li>
-            </ul>
-          </nav>
+              </>
+            )}
+          </div>
         </div>
-      )}
-    </header>
+
+        {/* Navigation Menu - Desktop */}
+        <nav
+          className={`${styles.headerNavigation} ${
+            isMobile ? styles.hidden : ""
+          }`}
+        >
+          <ul className={styles.navMenu}>
+            <li className={styles.navItem}>
+              <a
+                href="/"
+                className={`${styles.navLink} ${
+                  activeNavItem === "/" ? styles.active : ""
+                }`}
+              >
+                Home
+              </a>
+            </li>
+            <li className={`${styles.navItem} ${styles.dropdown}`}>
+              <button
+                className={`${styles.navLink} ${styles.dropdownToggle} ${
+                  activeNavItem.includes("/collections/") &&
+                  !activeNavItem.includes("features")
+                    ? styles.active
+                    : ""
+                }`}
+                onClick={toggleShopMenu}
+                aria-expanded={shopMenuOpen}
+              >
+                Shop
+                <FiChevronDown
+                  className={`${styles.dropdownArrow} ${
+                    shopMenuOpen ? styles.rotate : ""
+                  }`}
+                />
+              </button>
+              <ul
+                className={`${styles.dropdownMenu} ${
+                  shopMenuOpen ? styles.open : ""
+                }`}
+              >
+                <li>
+                  <a
+                    href="/collections/makhanas"
+                    className={
+                      activeNavItem === "/collections/makhanas"
+                        ? styles.active
+                        : ""
+                    }
+                  >
+                    Makhanas
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="/collections/millet-puffs"
+                    className={
+                      activeNavItem === "/collections/millet-puffs"
+                        ? styles.active
+                        : ""
+                    }
+                  >
+                    Millet Puffs
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="/collections/instant-meals"
+                    className={
+                      activeNavItem === "/collections/instant-meals"
+                        ? styles.active
+                        : ""
+                    }
+                  >
+                    Instant Meals
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="/collections/trail-mix"
+                    className={
+                      activeNavItem === "/collections/trail-mix"
+                        ? styles.active
+                        : ""
+                    }
+                  >
+                    Trail Mix
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="/collections/nutritious-nuts"
+                    className={
+                      activeNavItem === "/collections/nutritious-nuts"
+                        ? styles.active
+                        : ""
+                    }
+                  >
+                    Nutritious Nuts
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="/collections/makhana-combo-packs"
+                    className={
+                      activeNavItem === "/collections/makhana-combo-packs"
+                        ? styles.active
+                        : ""
+                    }
+                  >
+                    Combo Packs
+                  </a>
+                </li>
+              </ul>
+            </li>
+            <li className={`${styles.navItem} ${styles.dropdown}`}>
+              <button
+                className={`${styles.navLink} ${styles.dropdownToggle} ${
+                  activeNavItem.includes("features") ? styles.active : ""
+                }`}
+                onClick={toggleFeaturesMenu}
+                aria-expanded={featuresMenuOpen}
+              >
+                Shop by Features
+                <FiChevronDown
+                  className={`${styles.dropdownArrow} ${
+                    featuresMenuOpen ? styles.rotate : ""
+                  }`}
+                />
+              </button>
+              <ul
+                className={`${styles.dropdownMenu} ${
+                  featuresMenuOpen ? styles.open : ""
+                }`}
+              >
+                <li>
+                  <a
+                    href="/collections/high-protein"
+                    className={
+                      activeNavItem === "/collections/high-protein"
+                        ? styles.active
+                        : ""
+                    }
+                  >
+                    High Protein
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="/collections/gluten-free"
+                    className={
+                      activeNavItem === "/collections/gluten-free"
+                        ? styles.active
+                        : ""
+                    }
+                  >
+                    Gluten Free
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="/collections/high-fibre"
+                    className={
+                      activeNavItem === "/collections/high-fibre"
+                        ? styles.active
+                        : ""
+                    }
+                  >
+                    High Fiber
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="/collections/probiotics"
+                    className={
+                      activeNavItem === "/collections/probiotics"
+                        ? styles.active
+                        : ""
+                    }
+                  >
+                    Good for Gut Health
+                  </a>
+                </li>
+              </ul>
+            </li>
+
+            {/* New Bundle Discount Menu Item */}
+            <li className={styles.navItem}>
+              <a
+                href="/collections/bundle"
+                className={`${styles.navLink} ${styles.specialBundle} ${
+                  activeNavItem === "/collections/bundle" ? styles.active : ""
+                }`}
+              >
+                {selectedBundleProducts.length > 0 ? (
+                  <div className={styles.bundleIndicator}>
+                    <div className={styles.bundleCircles}>
+                      {selectedBundleProducts.map(
+                        (product, index) =>
+                          index < 3 && (
+                            <div
+                              key={product.id}
+                              className={styles.bundleItemCircle}
+                            >
+                              <img
+                                src={
+                                  product.images?.main || product.image || ""
+                                }
+                                alt=""
+                                className={styles.bundleItemImage}
+                              />
+                            </div>
+                          )
+                      )}
+                      {selectedBundleProducts.length > 3 && (
+                        <div className={styles.bundleItemMore}>
+                          +{selectedBundleProducts.length - 3}
+                        </div>
+                      )}
+                    </div>
+                    {remainingItems > 0 ? (
+                      <span className={styles.bundleRemainingText}>
+                        Need {remainingItems} more
+                      </span>
+                    ) : (
+                      <span className={styles.bundleCompleteText}>
+                        Complete Bundle
+                      </span>
+                    )}
+                  </div>
+                ) : (
+                  "Buy any 7 at 499"
+                )}
+              </a>
+            </li>
+
+            <li className={styles.navItem}>
+              <a
+                href="/collections/all"
+                className={`${styles.navLink} ${
+                  activeNavItem === "/collections/all" ? styles.active : ""
+                }`}
+              >
+                All Snacks
+              </a>
+            </li>
+
+            <li className={styles.navItem}>
+              <a href="https://foodyoga.shop/" className={styles.navLink}>
+                USA Website
+              </a>
+            </li>
+          </ul>
+        </nav>
+
+        {/* Mobile Menu */}
+        {isMobile && (
+          <div
+            className={`${styles.mobileMenu} ${
+              mobileMenuOpen ? styles.mobileMenuOpen : ""
+            }`}
+          >
+            {/* Mobile menu header with close button */}
+            <div className={styles.mobileMenuHeader}>
+              <button
+                className={styles.closeMenuButton}
+                onClick={closeMobileMenu}
+                aria-label="Close menu"
+              >
+                <FiX className={styles.icon} />
+              </button>
+            </div>
+
+            <nav className={styles.mobileNavigation}>
+              <ul className={styles.mobileNavMenu}>
+                <li className={styles.mobileNavItem}>
+                  <a
+                    href="/"
+                    className={`${styles.mobileNavLink} ${
+                      activeNavItem === "/" ? styles.active : ""
+                    }`}
+                  >
+                    Home
+                  </a>
+                </li>
+
+                {/* Mobile Shop Dropdown */}
+                <li
+                  className={`${styles.mobileNavItem} ${styles.mobileDropdown}`}
+                >
+                  <button
+                    className={styles.mobileDropdownToggle}
+                    onClick={toggleMobileShopMenu}
+                    aria-expanded={mobileShopOpen}
+                  >
+                    Shop
+                    <FiChevronDown
+                      className={`${styles.mobileDropdownArrow} ${
+                        mobileShopOpen ? styles.rotate : ""
+                      }`}
+                    />
+                  </button>
+                  <ul
+                    className={`${styles.mobileDropdownMenu} ${
+                      mobileShopOpen ? styles.mobileDropdownMenuOpen : ""
+                    }`}
+                  >
+                    <li>
+                      <a
+                        href="/collections/makhanas"
+                        className={
+                          activeNavItem === "/collections/makhanas"
+                            ? styles.active
+                            : ""
+                        }
+                      >
+                        Makhanas
+                      </a>
+                    </li>
+                    <li>
+                      <a
+                        href="/collections/millet-puffs"
+                        className={
+                          activeNavItem === "/collections/millet-puffs"
+                            ? styles.active
+                            : ""
+                        }
+                      >
+                        Millet Puffs
+                      </a>
+                    </li>
+                    <li>
+                      <a
+                        href="/collections/instant-meals"
+                        className={
+                          activeNavItem === "/collections/instant-meals"
+                            ? styles.active
+                            : ""
+                        }
+                      >
+                        Instant Meals
+                      </a>
+                    </li>
+                    <li>
+                      <a
+                        href="/collections/trail-mix"
+                        className={
+                          activeNavItem === "/collections/trail-mix"
+                            ? styles.active
+                            : ""
+                        }
+                      >
+                        Trail Mix
+                      </a>
+                    </li>
+                    <li>
+                      <a
+                        href="/collections/nutritious-nuts"
+                        className={
+                          activeNavItem === "/collections/nutritious-nuts"
+                            ? styles.active
+                            : ""
+                        }
+                      >
+                        Nutritious Nuts
+                      </a>
+                    </li>
+                    <li>
+                      <a
+                        href="/collections/makhana-combo-packs"
+                        className={
+                          activeNavItem === "/collections/makhana-combo-packs"
+                            ? styles.active
+                            : ""
+                        }
+                      >
+                        Combo Packs
+                      </a>
+                    </li>
+                  </ul>
+                </li>
+
+                {/* Mobile Features Dropdown */}
+                <li
+                  className={`${styles.mobileNavItem} ${styles.mobileDropdown}`}
+                >
+                  <button
+                    className={styles.mobileDropdownToggle}
+                    onClick={toggleMobileFeaturesMenu}
+                    aria-expanded={mobileFeaturesOpen}
+                  >
+                    Shop by Features
+                    <FiChevronDown
+                      className={`${styles.mobileDropdownArrow} ${
+                        mobileFeaturesOpen ? styles.rotate : ""
+                      }`}
+                    />
+                  </button>
+                  <ul
+                    className={`${styles.mobileDropdownMenu} ${
+                      mobileFeaturesOpen ? styles.mobileDropdownMenuOpen : ""
+                    }`}
+                  >
+                    <li>
+                      <a
+                        href="/collections/high-protein"
+                        className={
+                          activeNavItem === "/collections/high-protein"
+                            ? styles.active
+                            : ""
+                        }
+                      >
+                        High Protein
+                      </a>
+                    </li>
+                    <li>
+                      <a
+                        href="/collections/gluten-free"
+                        className={
+                          activeNavItem === "/collections/gluten-free"
+                            ? styles.active
+                            : ""
+                        }
+                      >
+                        Gluten Free
+                      </a>
+                    </li>
+                    <li>
+                      <a
+                        href="/collections/high-fiber"
+                        className={
+                          activeNavItem === "/collections/high-fiber"
+                            ? styles.active
+                            : ""
+                        }
+                      >
+                        High Fiber
+                      </a>
+                    </li>
+                    <li>
+                      <a
+                        href="/collections/probiotics"
+                        className={
+                          activeNavItem === "/collections/probiotics"
+                            ? styles.active
+                            : ""
+                        }
+                      >
+                        Good for Gut Health
+                      </a>
+                    </li>
+                  </ul>
+                </li>
+
+                {/* Mobile Bundle Menu Item */}
+                <li className={styles.mobileNavItem}>
+                  <a
+                    href="/collections/bundle"
+                    className={`${styles.mobileNavLink} ${
+                      styles.specialBundle
+                    } ${
+                      activeNavItem === "/collections/bundle"
+                        ? styles.active
+                        : ""
+                    }`}
+                  >
+                    {selectedBundleProducts.length > 0 ? (
+                      <div className={styles.mobileBundleIndicator}>
+                        <div className={styles.mobileBundleCircles}>
+                          {selectedBundleProducts.map(
+                            (product, index) =>
+                              index < 2 && (
+                                <div
+                                  key={product.id}
+                                  className={styles.mobileBundleItemCircle}
+                                >
+                                  <img
+                                    src={
+                                      product.images?.main ||
+                                      product.image ||
+                                      ""
+                                    }
+                                    alt=""
+                                    className={styles.mobileBundleItemImage}
+                                  />
+                                </div>
+                              )
+                          )}
+                          {selectedBundleProducts.length > 2 && (
+                            <div className={styles.mobileBundleItemMore}>
+                              +{selectedBundleProducts.length - 2}
+                            </div>
+                          )}
+                        </div>
+                        {remainingItems > 0 ? (
+                          <span className={styles.mobileBundleRemainingText}>
+                            Need {remainingItems} more
+                          </span>
+                        ) : (
+                          <span className={styles.mobileBundleCompleteText}>
+                            Complete Bundle
+                          </span>
+                        )}
+                      </div>
+                    ) : (
+                      "Buy any 7 at 499"
+                    )}
+                  </a>
+                </li>
+
+                <li className={styles.mobileNavItem}>
+                  <a
+                    href="/collections/all"
+                    className={`${styles.mobileNavLink} ${
+                      activeNavItem === "/collections/all" ? styles.active : ""
+                    }`}
+                  >
+                    All Snacks
+                  </a>
+                </li>
+
+                <li className={styles.mobileNavItem}>
+                  <a
+                    href="https://foodyoga.shop/"
+                    className={styles.mobileNavLink}
+                  >
+                    USA Website
+                  </a>
+                </li>
+
+                {/* Cart button in mobile menu */}
+                <li className={styles.mobileNavItem}>
+                  <button
+                    className={`${styles.mobileNavLink} ${styles.mobileCartButton}`}
+                    onClick={() => {
+                      toggleCart();
+                      closeMobileMenu();
+                    }}
+                  >
+                    <FiShoppingCart className={styles.icon} />
+                    <span>Cart</span>
+                    {cartCount > 0 && (
+                      <span className={styles.mobileCartCount}>
+                        {cartCount}
+                      </span>
+                    )}
+                  </button>
+                </li>
+
+                {/* Mobile account menu with Clerk integration */}
+                <li className={`${styles.mobileNavItem} ${styles.accountLink}`}>
+                  <SignedOut>
+                    <SignInButton mode="modal">
+                      <button
+                        className={`${styles.mobileNavLink} ${styles.mobileAuthButton}`}
+                      >
+                        <FiUser className={styles.icon} />
+                        Sign In / Register
+                      </button>
+                    </SignInButton>
+                  </SignedOut>
+
+                  <SignedIn>
+                    <div
+                      className={`${styles.mobileNavLink} ${styles.mobileAuthButton}`}
+                    >
+                      <UserButton
+                        userProfileMode="modal"
+                        afterSignOutUrl="/"
+                        appearance={{
+                          elements: {
+                            userButtonAvatarBox: {
+                              width: "24px",
+                              height: "24px",
+                              marginRight: "8px",
+                            },
+                          },
+                        }}
+                      />
+                      <span>My Account</span>
+                    </div>
+                  </SignedIn>
+                </li>
+              </ul>
+            </nav>
+          </div>
+        )}
+      </header>
+    </BundleContext.Provider>
   );
 };
 

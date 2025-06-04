@@ -782,113 +782,129 @@
   font-weight: 600;
 }
 
-/* Add these styles to your headercomponent.module.css file */
-
-.bundleTitle {
+/* Bundle indicator in navbar */
+.bundleIndicator {
   display: flex;
   align-items: center;
+  gap: 8px;
+}
+
+.bundleCircles {
+  display: flex;
+  align-items: center;
+}
+
+.bundleItemCircle {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background-color: white;
+  overflow: hidden;
+  margin-left: -8px;
+  border: 1px solid #e0e0e0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.bundleItemCircle:first-child {
+  margin-left: 0;
+}
+
+.bundleItemImage {
+  width: 85%;
+  height: 85%;
+  object-fit: contain;
+}
+
+.bundleItemMore {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background-color: #f0f4ff;
+  border: 1px solid #e0e0e0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  color: #3b82f6;
   font-weight: 700;
-  color: #3b82f6;
+  margin-left: -8px;
 }
 
-.bundleItems {
-  margin-top: 6px;
-  margin-bottom: 10px;
-  background-color: #f7f9ff;
-  border-radius: 6px;
-  padding: 8px 10px;
-  border: 1px solid #e5efff;
-}
-
-.bundleItemsTitle {
-  font-size: 0.75rem;
-  color: #3b82f6;
-  margin: 0 0 5px 0;
+.bundleRemainingText {
+  font-size: 12px;
+  color: #f97316;
   font-weight: 600;
 }
 
-.bundleItemsList {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  font-size: 0.75rem;
-  color: #666;
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 4px;
-  max-height: 100px;
-  overflow-y: auto;
-}
-
-.bundleItem {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  padding: 2px 0;
-}
-
-.bundleItem::before {
-  content: "•";
-  margin-right: 4px;
-  color: #3b82f6;
-}
-
-@media (max-width: 480px) {
-  .bundleItemsList {
-    grid-template-columns: 1fr;
-  }
-}
-
-/* Add these styles to your headercomponent.module.css file */
-
-/* Bundle notification styles */
-.bundleTitle {
-  display: flex;
-  align-items: center;
-  font-weight: 700;
-  color: #3b82f6;
-}
-
-.bundleItems {
-  margin-top: 6px;
-  margin-bottom: 10px;
-  background-color: #f7f9ff;
-  border-radius: 6px;
-  padding: 8px 10px;
-  border: 1px solid #e5efff;
-}
-
-.bundleItemsTitle {
-  font-size: 0.75rem;
-  color: #3b82f6;
-  margin: 0 0 5px 0;
+.bundleCompleteText {
+  font-size: 12px;
+  color: #10b981;
   font-weight: 600;
 }
 
-.bundleItemsList {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  font-size: 0.75rem;
-  color: #666;
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 4px;
-  max-height: 100px;
-  overflow-y: auto;
+/* Mobile bundle indicator */
+.mobileBundleIndicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
-.bundleItem {
-  white-space: nowrap;
+.mobileBundleCircles {
+  display: flex;
+  align-items: center;
+}
+
+.mobileBundleItemCircle {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background-color: white;
   overflow: hidden;
-  text-overflow: ellipsis;
-  padding: 2px 0;
+  margin-left: -6px;
+  border: 1px solid #e0e0e0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.bundleItem::before {
-  content: "•";
-  margin-right: 4px;
+.mobileBundleItemCircle:first-child {
+  margin-left: 0;
+}
+
+.mobileBundleItemImage {
+  width: 85%;
+  height: 85%;
+  object-fit: contain;
+}
+
+.mobileBundleItemMore {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background-color: #f0f4ff;
+  border: 1px solid #e0e0e0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
   color: #3b82f6;
+  font-weight: 700;
+  margin-left: -6px;
+}
+
+.mobileBundleRemainingText {
+  font-size: 12px;
+  color: #f97316;
+  font-weight: 600;
+}
+
+.mobileBundleCompleteText {
+  font-size: 12px;
+  color: #10b981;
+  font-weight: 600;
 }
 
 /* Bundle group styles in cart */
