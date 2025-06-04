@@ -24,24 +24,8 @@
   font-size: 1.2rem;
   color: #666;
   max-width: 800px;
-  margin: 0 auto 20px;
+  margin: 0 auto 30px;
   line-height: 1.5;
-}
-
-.selectionSummary {
-  margin: 15px auto;
-  padding: 10px 20px;
-  background-color: #f0f7ff;
-  border-radius: 8px;
-  max-width: 500px;
-  border: 1px solid #d1e3ff;
-}
-
-.selectionSummary p {
-  margin: 0;
-  font-size: 1rem;
-  color: #3b82f6;
-  font-weight: 500;
 }
 
 .productGrid {
@@ -211,15 +195,6 @@
   .completeBundleButton {
     font-size: 1rem;
     padding: 10px 24px;
-  }
-  
-  .selectionSummary {
-    max-width: 90%;
-    padding: 8px 15px;
-  }
-  
-  .selectionSummary p {
-    font-size: 0.9rem;
   }
 }
 

@@ -1,9 +1,8 @@
 // src/pages/BundlePage.tsx
-import React, { useContext, useEffect, useState } from "react";
+import React, { useState, useEffect } from "react";
 import axios from "axios";
 import styles from "../styles/bundle.module.css";
 import { useCart } from "../context/CartContext";
-import { BundleContext } from "../components/HeaderComponent";
 
 interface Product {
   id: string;
@@ -18,17 +17,10 @@ interface Product {
 
 const BundlePage: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([]);
+  const [selectedProducts, setSelectedProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  // Get cart context for adding to cart
   const { addToCart } = useCart();
-
-  // Get the bundle context instead of using local state
-  const bundleContext = useContext(BundleContext);
-  const selectedProducts = bundleContext.selectedProducts;
-  const setSelectedProducts = bundleContext.setSelectedProducts;
-  const remainingItems = bundleContext.remainingItems;
 
   const BUNDLE_LIMIT = 7;
   const BUNDLE_PRICE = 499;
@@ -82,23 +74,21 @@ const BundlePage: React.FC = () => {
 
   const handleProductSelect = (product: Product) => {
     // Check if product is already selected
-    const isSelected = selectedProducts.some((p: any) => p.id === product.id);
+    const isSelected = selectedProducts.some((p) => p.id === product.id);
 
     if (isSelected) {
       // Remove product from selection
-      setSelectedProducts(
-        selectedProducts.filter((p: any) => p.id !== product.id)
-      );
+      setSelectedProducts((prev) => prev.filter((p) => p.id !== product.id));
     } else {
       // Add product to selection if under limit
       if (selectedProducts.length < BUNDLE_LIMIT) {
-        setSelectedProducts([...selectedProducts, product]);
+        setSelectedProducts((prev) => [...prev, product]);
       }
     }
   };
 
   const isProductSelected = (id: string) => {
-    return selectedProducts.some((p: any) => p.id === id);
+    return selectedProducts.some((p) => p.id === id);
   };
 
   const handleAddBundleToCart = () => {
@@ -111,7 +101,7 @@ const BundlePage: React.FC = () => {
     const bundleId = `bundle-${Date.now()}`;
 
     // Add each product individually
-    selectedProducts.forEach((product: any) => {
+    selectedProducts.forEach((product) => {
       const bundleProduct = {
         id: product.id,
         title: product.title,
@@ -141,6 +131,8 @@ const BundlePage: React.FC = () => {
     return <div className={styles.error}>{error}</div>;
   }
 
+  const remainingItems = BUNDLE_LIMIT - selectedProducts.length;
+
   return (
     <div className={styles.bundlePage}>
       <div className={styles.bundleHeader}>
@@ -148,19 +140,6 @@ const BundlePage: React.FC = () => {
         <p className={styles.bundleDescription}>
           Select any 7 products to create your discounted bundle!
         </p>
-
-        {/* Display selection summary */}
-        {selectedProducts.length > 0 && (
-          <div className={styles.selectionSummary}>
-            <p>
-              You've selected {selectedProducts.length} item
-              {selectedProducts.length !== 1 ? "s" : ""}
-              {remainingItems > 0
-                ? ` (need ${remainingItems} more)`
-                : " - your bundle is complete!"}
-            </p>
-          </div>
-        )}
       </div>
 
       <div className={styles.productGrid}>
@@ -201,15 +180,36 @@ const BundlePage: React.FC = () => {
         ))}
       </div>
 
-      {/* Complete Bundle button at bottom of page when all items selected */}
-      {selectedProducts.length === BUNDLE_LIMIT && (
-        <div className={styles.completeBundleContainer}>
-          <button
-            className={styles.completeBundleButton}
-            onClick={handleAddBundleToCart}
-          >
-            Complete Bundle - ₹{BUNDLE_PRICE}
-          </button>
+      {/* Floating bundle notification */}
+      {selectedProducts.length > 0 && (
+        <div className={styles.bundleNotification}>
+          <div className={styles.bundlePreview}>
+            {selectedProducts.map((product) => (
+              <div key={product.id} className={styles.bundlePreviewItem}>
+                <img
+                  src={product.images.main}
+                  alt={product.title}
+                  className={styles.bundlePreviewImage}
+                />
+              </div>
+            ))}
+          </div>
+
+          <div className={styles.bundleNotificationBar}>
+            {remainingItems > 0 ? (
+              <div className={styles.bundleNotificationText}>
+                Your bundle needs {remainingItems} more item
+                {remainingItems !== 1 ? "s" : ""}
+              </div>
+            ) : (
+              <button
+                className={styles.completeBundleButton}
+                onClick={handleAddBundleToCart}
+              >
+                Complete Bundle - ₹{BUNDLE_PRICE}
+              </button>
+            )}
+          </div>
         </div>
       )}
     </div>

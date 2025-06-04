@@ -31,6 +31,8 @@ const App = () => {
   return (
     <ClerkProvider publishableKey={publishableKey}>
       <CartProvider>
+        {" "}
+        {/* Add BundleProvider here */}
         <Router>
           <AnnouncementBar message="Enjoy Free Shipping on Orders Over ₹299" />
           <div style={{ marginLeft: "200.4px", marginRight: "200.4px" }}>
