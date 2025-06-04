@@ -194,18 +194,20 @@ const BundlePage: React.FC = () => {
               </div>
             ))}
           </div>
-          <div className={styles.bundleNotificationText}>
-            Your bundle needs {remainingItems} more item
-            {remainingItems !== 1 ? "s" : ""}.
+          <div className={styles.bundleNotificationBar}>
+            <div className={styles.bundleNotificationText}>
+              Your bundle needs {remainingItems} more item
+              {remainingItems !== 1 ? "s" : ""}.
+            </div>
+            {remainingItems === 0 && (
+              <button
+                className={styles.completeBundleButton}
+                onClick={handleAddBundleToCart}
+              >
+                Complete Bundle - ₹{BUNDLE_PRICE}
+              </button>
+            )}
           </div>
-          {remainingItems === 0 && (
-            <button
-              className={styles.completeBundleButton}
-              onClick={handleAddBundleToCart}
-            >
-              Complete Bundle - ₹{BUNDLE_PRICE}
-            </button>
-          )}
         </div>
       )}
     </div>

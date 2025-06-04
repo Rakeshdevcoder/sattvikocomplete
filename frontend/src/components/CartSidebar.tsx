@@ -29,7 +29,7 @@ interface ExtendedCartItem {
   id: string;
   productId: string;
   title: string;
-  price: number;
+  price: number | string;
   quantity: number;
   image?: ImageType;
   weight?: string;
@@ -39,7 +39,7 @@ interface ExtendedCartItem {
   // Bundle as separate items properties
   isBundleItem?: boolean;
   bundleId?: string;
-  originalPrice?: number;
+  originalPrice?: number | string;
 }
 
 const CartSidebar: React.FC = () => {
@@ -57,10 +57,17 @@ const CartSidebar: React.FC = () => {
   // State for quantity updates
   const [updatingItemId, setUpdatingItemId] = useState<string | null>(null);
 
-  // Group bundle items for display
+  // State for bundle groups
   const [bundleGroups, setBundleGroups] = useState<
     Record<string, ExtendedCartItem[]>
   >({});
+
+  // Helper function to safely convert price to number
+  const toNumber = (value: string | number | undefined): number => {
+    if (typeof value === "number") return value;
+    if (typeof value === "string") return parseFloat(value) || 0;
+    return 0;
+  };
 
   // Organize bundle items for display
   useEffect(() => {
@@ -132,7 +139,7 @@ const CartSidebar: React.FC = () => {
     const bundleItems = bundleGroups[bundleId] || [];
     return bundleItems.reduce(
       (total, item) =>
-        total + (item.originalPrice || item.price) * item.quantity,
+        total + toNumber(item.originalPrice || item.price) * item.quantity,
       0
     );
   };
@@ -141,7 +148,7 @@ const CartSidebar: React.FC = () => {
   const getBundleActualTotal = (bundleId: string): number => {
     const bundleItems = bundleGroups[bundleId] || [];
     return bundleItems.reduce(
-      (total, item) => total + item.price * item.quantity,
+      (total, item) => total + toNumber(item.price) * item.quantity,
       0
     );
   };
@@ -259,10 +266,13 @@ const CartSidebar: React.FC = () => {
 
                           <div className={styles.bundleItemPricing}>
                             <span className={styles.bundleItemOriginalPrice}>
-                              ₹{(item.originalPrice || item.price).toFixed(2)}
+                              ₹
+                              {toNumber(
+                                item.originalPrice || item.price
+                              ).toFixed(2)}
                             </span>
                             <span className={styles.bundleItemDiscountedPrice}>
-                              ₹{item.price.toFixed(2)}
+                              ₹{toNumber(item.price).toFixed(2)}
                             </span>
                           </div>
 
@@ -393,7 +403,7 @@ const CartSidebar: React.FC = () => {
                         )}
 
                         <p className={styles.cartItemPrice}>
-                          ₹{item.price.toFixed(2)}
+                          ₹{toNumber(item.price).toFixed(2)}
                         </p>
 
                         {/* Quantity controls */}
@@ -453,7 +463,7 @@ const CartSidebar: React.FC = () => {
             {/* Subtotal */}
             <div className={styles.subtotal}>
               <span>Subtotal</span>
-              <span>₹{cart.subtotal.toFixed(2)}</span>
+              <span>₹{toNumber(cart.subtotal).toFixed(2)}</span>
             </div>
 
             {/* Checkout button - only show login prompt if not signed in */}
