@@ -763,4 +763,100 @@
   color: #333;
 }
 
+/* Add these to your styles/headercomponent.module.css */
+.couponSection {
+  padding: 15px 20px;
+  border-top: 1px solid #eee;
+}
 
+.couponForm {
+  display: flex;
+  gap: 8px;
+}
+
+.couponInput {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  font-size: 0.9rem;
+}
+
+.applyCouponButton {
+  background-color: #4a5568;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 8px 12px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.applyCouponButton:hover:not(:disabled) {
+  background-color: #2d3748;
+}
+
+.applyCouponButton:disabled {
+  background-color: #a0aec0;
+  cursor: not-allowed;
+}
+
+.appliedCoupon {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background-color: #f7fafc;
+  border-radius: 4px;
+  border: 1px dashed #4a5568;
+}
+
+.couponInfo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.couponIcon {
+  color: #38a169;
+}
+
+.removeCouponButton {
+  background: none;
+  border: none;
+  color: #e53e3e;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.removeCouponButton:hover {
+  background-color: rgba(229, 62, 62, 0.1);
+}
+
+.priceDetails {
+  margin-bottom: 16px;
+}
+
+.priceRow {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  font-size: 0.95rem;
+  color: #4a5568;
+}
+
+.totalRow {
+  display: flex;
+  justify-content: space-between;
+  padding-top: 8px;
+  margin-top: 8px;
+  border-top: 1px solid #e2e8f0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #2d3748;
+}

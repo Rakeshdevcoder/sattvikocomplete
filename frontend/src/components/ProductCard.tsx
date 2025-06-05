@@ -66,9 +66,11 @@ const ProductCard: React.FC<ProductProps> = ({ product }) => {
   };
 
   // Handle add to cart
+
   const handleAddToCart = () => {
     setIsAddingToCart(true);
-    addToCart(product.id);
+    // This only passes the ID, not the product object
+    addToCart(product); // Changed from addToCart(product.id)
 
     // Reset button state after a short delay
     setTimeout(() => {

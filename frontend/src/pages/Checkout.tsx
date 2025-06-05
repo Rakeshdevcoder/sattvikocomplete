@@ -1,3 +1,4 @@
+// src/pages/Checkout.tsx
 import React, { useState, type ChangeEvent } from "react";
 import { useCart } from "../context/CartContext";
 import {
@@ -9,7 +10,6 @@ import {
   FiCreditCard,
   FiTruck,
 } from "react-icons/fi";
-import { v4 as uuidv4 } from "uuid";
 import styles from "../styles/checkout.module.css";
 import { Link, useNavigate } from "react-router-dom";
 
@@ -23,7 +23,7 @@ interface Address {
 }
 
 const Checkout: React.FC = () => {
-  const { cart, updateCartItem, removeCartItem, clearCart } = useCart();
+  const { cart, updateCartItem, removeCartItem, checkoutCart } = useCart();
   const navigate = useNavigate();
   const [orderInstructions, setOrderInstructions] = useState("");
   const [showAddressForm, setShowAddressForm] = useState(false);
@@ -72,37 +72,47 @@ const Checkout: React.FC = () => {
 
   const handlePlaceOrder = async () => {
     setIsPlacingOrder(true);
-    const newOrderId = uuidv4();
-    const orderDate = new Date();
-    const deliveryDate = new Date(orderDate);
-    deliveryDate.setDate(orderDate.getDate() + 3);
-
-    const payload = {
-      orderId: newOrderId,
-      items: cart.items,
-      subtotal: cart.subtotal,
-      instructions: orderInstructions,
-      address,
-      orderDate: orderDate.toISOString(),
-      deliveryDate: deliveryDate.toISOString(),
-    };
 
     try {
-      const res = await fetch("http://localhost:4000/api/orders", {
+      // First checkout the cart in the cart service
+      const checkedOutCart = await checkoutCart();
+
+      // Then create an order in your order service with order details
+      const orderPayload = {
+        cartId: checkedOutCart.id,
+        items: checkedOutCart.items,
+        subtotal: checkedOutCart.subtotal,
+        taxAmount: checkedOutCart.taxAmount,
+        shippingCost: checkedOutCart.shippingCost,
+        totalAmount: checkedOutCart.totalAmount,
+        instructions: orderInstructions,
+        address,
+        orderDate: new Date().toISOString(),
+        // Add estimated delivery date
+        deliveryDate: new Date(
+          Date.now() + 3 * 24 * 60 * 60 * 1000
+        ).toISOString(),
+      };
+
+      // Call your order service API to create an order
+      const res = await fetch("http://localhost:8081/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(orderPayload),
       });
+
       if (!res.ok) {
         const errorText = await res.text();
         throw new Error(errorText || `HTTP ${res.status}`);
       }
-      clearCart();
-      // navigate to separate success page
+
+      const orderData = await res.json();
+
+      // Navigate to success page with order ID
       navigate("/order-success", {
         state: {
-          orderId: newOrderId,
-          deliveryDate: deliveryDate.toISOString(),
+          orderId: orderData.id,
+          deliveryDate: orderData.deliveryDate,
         },
       });
     } catch (err: any) {
@@ -114,11 +124,9 @@ const Checkout: React.FC = () => {
   };
 
   const formattedSubtotal = cart.subtotal.toFixed(2);
-  // Fixed shipping cost - can be replaced with actual calculation if needed
-  const shippingCost = 40.0;
-  const formattedShipping = shippingCost.toFixed(2);
-  const total = cart.subtotal + shippingCost;
-  const formattedTotal = total.toFixed(2);
+  const formattedShipping = cart.shippingCost.toFixed(2);
+  const formattedTax = cart.taxAmount.toFixed(2);
+  const formattedTotal = cart.totalAmount.toFixed(2);
 
   return (
     <div className={styles.checkoutContainer}>
@@ -238,9 +246,21 @@ const Checkout: React.FC = () => {
             </div>
 
             <div className={styles.summaryRow}>
+              <span>Tax</span>
+              <span>Rs. {formattedTax}</span>
+            </div>
+
+            <div className={styles.summaryRow}>
               <span>Shipping</span>
               <span>Rs. {formattedShipping}</span>
             </div>
+
+            {cart.coupon && (
+              <div className={styles.summaryRow}>
+                <span>Discount ({cart.coupon.code})</span>
+                <span>-Rs. {cart.coupon.discountValue.toFixed(2)}</span>
+              </div>
+            )}
 
             <div className={`${styles.summaryRow} ${styles.totalRow}`}>
               <span>Total</span>

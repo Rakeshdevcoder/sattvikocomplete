@@ -7,6 +7,7 @@ import React, {
   useCallback,
   type ReactNode,
 } from "react";
+import { useAuth, useUser } from "@clerk/clerk-react";
 import { type Cart, cartApi } from "../api/cartApi";
 
 // Simple context type with essential cart functionality
@@ -21,6 +22,9 @@ interface CartContextType {
   updateCartItem: (itemId: string, quantity: number) => Promise<void>;
   removeCartItem: (itemId: string) => Promise<void>;
   clearCart: () => Promise<void>;
+  applyCoupon: (code: string) => Promise<void>;
+  removeCoupon: () => Promise<void>;
+  checkoutCart: () => Promise<Cart>;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -43,6 +47,9 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
   const [error, setError] = useState<string | null>(null);
   const [isCartOpen, setIsCartOpen] = useState(false);
 
+  const { isSignedIn, getToken } = useAuth();
+  const { user } = useUser();
+
   // Calculate total number of items in cart
   const cartCount =
     cart?.items.reduce((total, item) => total + item.quantity, 0) || 0;
@@ -52,6 +59,38 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
     setIsCartOpen((prev) => !prev);
   }, []);
 
+  // Update auth token when authentication state changes
+  useEffect(() => {
+    const updateAuthToken = async () => {
+      if (isSignedIn) {
+        try {
+          const token = await getToken();
+          cartApi.setAuthToken(token);
+
+          // If there was a guest cart, try to merge it
+          const guestCartId = localStorage.getItem("cartId");
+          if (guestCartId) {
+            try {
+              await cartApi.mergeGuestCart(guestCartId);
+            } catch (err) {
+              console.error("Failed to merge carts:", err);
+            }
+          }
+
+          // Get the user cart after login
+          const userCart = await cartApi.getCart();
+          setCart(userCart);
+        } catch (err) {
+          console.error("Failed to get user token:", err);
+        }
+      } else {
+        cartApi.setAuthToken(null);
+      }
+    };
+
+    updateAuthToken();
+  }, [isSignedIn, getToken]);
+
   // Initialize cart on component mount
   useEffect(() => {
     const initializeCart = async () => {
@@ -59,7 +98,7 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
       setError(null);
 
       try {
-        // Get cart from localStorage
+        // Get cart from API
         const currentCart = await cartApi.getCart();
         setCart(currentCart);
       } catch (err) {
@@ -74,10 +113,6 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
   }, []);
 
   // Add item to cart
-  // src/context/CartContext.tsx
-  // Let's check the addToCart function in the CartProvider component
-
-  // Add item to cart
   const addToCart = async (product: any) => {
     if (!product || !product.id) {
       console.error("Cannot add to cart: invalid product");
@@ -89,7 +124,6 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
 
     try {
       // Pass the quantity parameter to the cartApi.addToCart method
-      // ⚠️ Make sure to pass the quantity from the product object if available
       const quantity = product.quantity || 1;
 
       // Call the API to add the item with the specified quantity
@@ -167,6 +201,56 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
     }
   };
 
+  // Apply coupon to cart
+  const applyCoupon = async (code: string) => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const updatedCart = await cartApi.applyCoupon(code);
+      setCart(updatedCart);
+    } catch (err) {
+      console.error("Failed to apply coupon:", err);
+      setError("Failed to apply coupon. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Remove coupon from cart
+  const removeCoupon = async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const updatedCart = await cartApi.removeCoupon();
+      setCart(updatedCart);
+    } catch (err) {
+      console.error("Failed to remove coupon:", err);
+      setError("Failed to remove coupon. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Checkout cart
+  const checkoutCart = async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const checkedOutCart = await cartApi.checkoutCart();
+      setCart(null);
+      return checkedOutCart;
+    } catch (err) {
+      console.error("Failed to checkout cart:", err);
+      setError("Failed to complete checkout. Please try again.");
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <CartContext.Provider
       value={{
@@ -180,6 +264,9 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
         updateCartItem,
         removeCartItem,
         clearCart,
+        applyCoupon,
+        removeCoupon,
+        checkoutCart,
       }}
     >
       {children}

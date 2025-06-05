@@ -1,5 +1,4 @@
 // App.tsx
-import Home from "./pages/Home";
 import { CartProvider } from "./context/CartContext";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { ClerkProvider } from "@clerk/clerk-react";
@@ -23,6 +22,7 @@ import Footer from "./components/FooterComponent";
 import AllProduct from "./pages/AllProduct";
 import ProductDetail from "./pages/ProductDetail";
 import BundlePage from "./pages/BundlePage";
+import Home from "./pages/Home";
 
 // Get Clerk publishable key from environment variables
 const publishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY || "";
@@ -31,8 +31,6 @@ const App = () => {
   return (
     <ClerkProvider publishableKey={publishableKey}>
       <CartProvider>
-        {" "}
-        {/* Add BundleProvider here */}
         <Router>
           <AnnouncementBar message="Enjoy Free Shipping on Orders Over ₹299" />
           <div style={{ marginLeft: "200.4px", marginRight: "200.4px" }}>

@@ -1,147 +1,248 @@
+// src/api/cartApi.ts
+import axios from "axios";
+
 export interface CartItem {
   id: string;
   productId: string;
   title: string;
+  description?: string;
   price: number;
   quantity: number;
-  image?: string | { main: string } | { main: string; hover: string };
+  image?: string;
   weight?: string;
-  isBundleItem?: boolean;
-  bundleId?: string; // For bundle items, reference to the bundle
-  originalPrice?: number; // Original price for bundle items
-  bundledProducts?: {
-    id: string;
-    title: string;
-    weight?: string;
-  }[];
 }
 
 export interface Cart {
   id: string;
+  userId?: string;
   items: CartItem[];
   subtotal: number;
+  taxAmount: number;
+  shippingCost: number;
   totalAmount: number;
+  coupon?: {
+    code: string;
+    discountType: string;
+    discountValue: number;
+    appliedAt: string;
+  };
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+  expiresAt: string;
 }
 
-// Class for managing cart locally using localStorage
+// Class for managing cart through backend API
 export class CartApiClient {
-  private CART_STORAGE_KEY = "local-shopping-cart";
+  private baseUrl: string;
+  private cartId: string = "";
+  private authToken: string | null = null;
 
-  // Get cart from localStorage
-  async getCart(): Promise<Cart> {
+  constructor() {
+    // Use direct URL to the cart service for testing
+    this.baseUrl = "http://localhost:8083";
+    console.log("Cart API initialized with baseUrl:", this.baseUrl);
+  }
+
+  // Set auth token for authenticated requests
+  setAuthToken(token: string | null) {
+    this.authToken = token;
+  }
+
+  // Get headers for requests
+  private getHeaders() {
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+
+    if (this.authToken) {
+      headers["Authorization"] = `Bearer ${this.authToken}`;
+    }
+
+    return headers;
+  }
+
+  // Create a new cart
+  async createCart(): Promise<Cart> {
     try {
-      // Check for an existing cart in localStorage
-      const cartData = localStorage.getItem(this.CART_STORAGE_KEY);
-      if (cartData) {
-        return JSON.parse(cartData);
-      } else {
-        // Create a new cart if none exists
-        const newCart = this.createEmptyCart();
-        this.saveCart(newCart);
-        return newCart;
+      console.log("Creating new cart...");
+      const response = await axios.post(
+        `${this.baseUrl}/carts`,
+        {}, // Empty request body
+        {
+          headers: this.getHeaders(),
+          // Add timeout to avoid hanging requests
+          timeout: 5000,
+        }
+      );
+
+      console.log("Cart created successfully:", response.data);
+      this.cartId = response.data.id;
+      localStorage.setItem("cartId", this.cartId);
+
+      return response.data;
+    } catch (error: any) {
+      console.error("Error creating cart:", error);
+
+      // Add more detailed error info for debugging
+      if (axios.isAxiosError(error) && error.response) {
+        console.error("Response data:", error.response.data);
+        console.error("Response status:", error.response.status);
+        console.error("Response headers:", error.response.headers);
       }
-    } catch (error) {
-      console.error("Error getting cart from localStorage:", error);
-      const newCart = this.createEmptyCart();
-      this.saveCart(newCart);
-      return newCart;
+
+      // Create a fallback cart for development
+      if (process.env.NODE_ENV === "development") {
+        console.log("Creating fallback cart for development");
+        const fallbackCart = this.createFallbackCart();
+        return fallbackCart;
+      }
+
+      throw error;
     }
   }
 
-  // Add item to cart with support for bundle products
-  async addToCart(productObject: any, quantity: number = 1): Promise<Cart> {
+  // Get cart - either user cart or cart by ID
+  async getCart(): Promise<Cart> {
     try {
-      // Extract product details
-      const productId = productObject.id || "";
-      const title = productObject.title || "Unknown Product";
-      const price = parseFloat(productObject.price) || 0;
-      const isBundleItem = productObject.isBundleItem || false;
-      const bundleId = productObject.bundleId || "";
-      const originalPrice = productObject.originalPrice || price;
+      console.log("Getting cart...");
 
-      // Get image from product format - improved handling of different image formats
-      let image;
-      if (productObject.image) {
-        // Direct image string
-        image = productObject.image;
-      } else if (productObject.images) {
-        // Handle both object with 'main' property and array formats
-        if (
-          typeof productObject.images === "object" &&
-          productObject.images.main
-        ) {
-          image = productObject.images.main;
-        } else if (
-          Array.isArray(productObject.images) &&
-          productObject.images.length > 0
-        ) {
-          image = productObject.images[0];
+      // For guest users, get cart by ID from localStorage
+      this.cartId = localStorage.getItem("cartId") || "";
+      console.log("Cart ID from localStorage:", this.cartId);
+
+      // If no cart ID in storage, create new cart
+      if (!this.cartId) {
+        console.log("No cart ID found, creating new cart");
+        return this.createCart();
+      }
+
+      // Get existing cart
+      console.log(`Fetching cart with ID: ${this.cartId}`);
+      const response = await axios.get(`${this.baseUrl}/carts/${this.cartId}`, {
+        headers: this.getHeaders(),
+        timeout: 5000,
+      });
+
+      console.log("Cart fetched successfully:", response.data);
+      return response.data;
+    } catch (error: any) {
+      console.error("Error getting cart:", error);
+
+      // Add more detailed error info for debugging
+      if (axios.isAxiosError(error) && error.response) {
+        console.error("Response data:", error.response.data);
+        console.error("Response status:", error.response.status);
+      }
+
+      // If cart not found or expired, create a new one
+      if (
+        axios.isAxiosError(error) &&
+        (error.response?.status === 404 || error.response?.status === 410)
+      ) {
+        console.log("Cart not found or expired, creating new cart");
+        return this.createCart();
+      }
+
+      // Create a fallback cart for development
+      if (process.env.NODE_ENV === "development") {
+        console.log("Creating fallback cart for development");
+        const fallbackCart = this.createFallbackCart();
+        return fallbackCart;
+      }
+
+      throw error;
+    }
+  }
+
+  // Add item to cart
+  async addToCart(product: any, quantity: number = 1): Promise<Cart> {
+    try {
+      console.log("Adding to cart:", product, "quantity:", quantity);
+
+      // Ensure we have a cart ID
+      if (!this.cartId) {
+        console.log("No cart ID found, getting cart");
+        const cart = await this.getCart();
+        this.cartId = cart.id;
+      }
+
+      // Format the price as a number
+      let price = 0;
+      if (typeof product.price === "string") {
+        // Remove any non-numeric characters except decimal point
+        const priceStr = product.price.replace(/[^0-9.]/g, "");
+        price = parseFloat(priceStr) || 0;
+      } else if (typeof product.price === "number") {
+        price = product.price;
+      }
+
+      // Create a minimal payload for the cart service
+      const payload = {
+        productId: product.id,
+        title: product.title || "Unknown Product",
+        description: product.description || "",
+        price: price,
+        quantity: quantity,
+        weight: product.weight || "",
+        image: this.getImageUrl(product),
+      };
+
+      console.log("Payload for cart service:", payload);
+      console.log(
+        `Sending request to: ${this.baseUrl}/carts/${this.cartId}/items`
+      );
+
+      const response = await axios.post(
+        `${this.baseUrl}/carts/${this.cartId}/items`,
+        payload,
+        {
+          headers: this.getHeaders(),
+          timeout: 5000,
         }
-      }
+      );
 
-      // Fallback image if none found
-      if (!image) {
-        image = "https://via.placeholder.com/150";
-      }
-
-      // Get weight if available
-      const weight = productObject.weight || "";
-
-      // Get current cart
-      const cart = await this.getCart();
-
-      // For bundle items, add them as individual items with a bundle reference
-      if (isBundleItem) {
-        // Add as new item with bundle reference
-        cart.items.push({
-          id: `item_${Date.now()}_${Math.random()
-            .toString(36)
-            .substring(2, 9)}`,
-          productId,
-          title,
-          price,
-          quantity,
-          image,
-          weight,
-          isBundleItem,
-          bundleId,
-          originalPrice,
-        });
-      } else {
-        // Regular product handling
-        // Check if product already exists in cart
-        const existingItemIndex = cart.items.findIndex(
-          (item) => item.productId === productId && !item.isBundleItem
-        );
-
-        if (existingItemIndex >= 0) {
-          // Update quantity of existing item
-          cart.items[existingItemIndex].quantity = quantity;
-        } else {
-          // Add as new item
-          cart.items.push({
-            id: `item_${Date.now()}_${Math.random()
-              .toString(36)
-              .substring(2, 9)}`,
-            productId,
-            title,
-            price,
-            quantity,
-            image,
-            weight,
-          });
-        }
-      }
-
-      // Update cart totals
-      this.updateCartTotals(cart);
-
-      // Save updated cart
-      this.saveCart(cart);
-
-      return cart;
-    } catch (error) {
+      console.log("Item added successfully:", response.data);
+      return response.data;
+    } catch (error: any) {
       console.error("Error adding item to cart:", error);
+
+      // Add more detailed error info for debugging
+      if (axios.isAxiosError(error) && error.response) {
+        console.error("Response data:", error.response.data);
+        console.error("Response status:", error.response.status);
+      }
+
+      // If using fallback cart in development, add item to it
+      if (process.env.NODE_ENV === "development") {
+        console.log("Using fallback cart in development");
+        const fallbackCart = await this.getFallbackCart();
+
+        // Add the item to the fallback cart
+        const newItem: CartItem = {
+          id: `item_${Date.now()}`,
+          productId: product.id,
+          title: product.title || "Unknown Product",
+          price:
+            typeof product.price === "string"
+              ? parseFloat(product.price.replace(/[^0-9.]/g, ""))
+              : product.price || 0,
+          quantity: quantity,
+          image: this.getImageUrl(product),
+          weight: product.weight || "",
+        };
+
+        fallbackCart.items.push(newItem);
+
+        // Update totals
+        this.updateFallbackCartTotals(fallbackCart);
+
+        // Save to localStorage
+        localStorage.setItem("fallbackCart", JSON.stringify(fallbackCart));
+
+        return fallbackCart;
+      }
+
       throw error;
     }
   }
@@ -149,27 +250,40 @@ export class CartApiClient {
   // Update cart item quantity
   async updateCartItem(itemId: string, quantity: number): Promise<Cart> {
     try {
-      // Get current cart
-      const cart = await this.getCart();
-
-      // Find the item
-      const itemIndex = cart.items.findIndex((item) => item.id === itemId);
-      if (itemIndex === -1) {
-        throw new Error(`Item ${itemId} not found in cart`);
+      if (!this.cartId) {
+        const cart = await this.getCart();
+        this.cartId = cart.id;
       }
 
-      // Update quantity
-      cart.items[itemIndex].quantity = quantity;
+      const response = await axios.put(
+        `${this.baseUrl}/carts/${this.cartId}/items/${itemId}`,
+        { quantity },
+        {
+          headers: this.getHeaders(),
+          timeout: 5000,
+        }
+      );
 
-      // Update totals
-      this.updateCartTotals(cart);
-
-      // Save updated cart
-      this.saveCart(cart);
-
-      return cart;
-    } catch (error) {
+      return response.data;
+    } catch (error: any) {
       console.error("Error updating cart item:", error);
+
+      // If using fallback cart in development
+      if (process.env.NODE_ENV === "development") {
+        const fallbackCart = await this.getFallbackCart();
+        const itemIndex = fallbackCart.items.findIndex(
+          (item) => item.id === itemId
+        );
+
+        if (itemIndex !== -1) {
+          fallbackCart.items[itemIndex].quantity = quantity;
+          this.updateFallbackCartTotals(fallbackCart);
+          localStorage.setItem("fallbackCart", JSON.stringify(fallbackCart));
+        }
+
+        return fallbackCart;
+      }
+
       throw error;
     }
   }
@@ -177,21 +291,34 @@ export class CartApiClient {
   // Remove item from cart
   async removeCartItem(itemId: string): Promise<Cart> {
     try {
-      // Get current cart
-      const cart = await this.getCart();
+      if (!this.cartId) {
+        const cart = await this.getCart();
+        this.cartId = cart.id;
+      }
 
-      // Remove the item
-      cart.items = cart.items.filter((item) => item.id !== itemId);
+      const response = await axios.delete(
+        `${this.baseUrl}/carts/${this.cartId}/items/${itemId}`,
+        {
+          headers: this.getHeaders(),
+          timeout: 5000,
+        }
+      );
 
-      // Update totals
-      this.updateCartTotals(cart);
-
-      // Save updated cart
-      this.saveCart(cart);
-
-      return cart;
-    } catch (error) {
+      return response.data;
+    } catch (error: any) {
       console.error("Error removing cart item:", error);
+
+      // If using fallback cart in development
+      if (process.env.NODE_ENV === "development") {
+        const fallbackCart = await this.getFallbackCart();
+        fallbackCart.items = fallbackCart.items.filter(
+          (item) => item.id !== itemId
+        );
+        this.updateFallbackCartTotals(fallbackCart);
+        localStorage.setItem("fallbackCart", JSON.stringify(fallbackCart));
+        return fallbackCart;
+      }
+
       throw error;
     }
   }
@@ -199,40 +326,305 @@ export class CartApiClient {
   // Clear cart
   async clearCart(): Promise<Cart> {
     try {
-      const cart = this.createEmptyCart();
-      this.saveCart(cart);
-      return cart;
-    } catch (error) {
+      if (!this.cartId) {
+        const cart = await this.getCart();
+        this.cartId = cart.id;
+      }
+
+      const response = await axios.delete(
+        `${this.baseUrl}/carts/${this.cartId}/items`,
+        {
+          headers: this.getHeaders(),
+          timeout: 5000,
+        }
+      );
+
+      return response.data;
+    } catch (error: any) {
       console.error("Error clearing cart:", error);
+
+      // If using fallback cart in development
+      if (process.env.NODE_ENV === "development") {
+        const fallbackCart = this.createFallbackCart();
+        localStorage.setItem("fallbackCart", JSON.stringify(fallbackCart));
+        return fallbackCart;
+      }
+
       throw error;
     }
   }
 
-  // Private method to save cart to localStorage
-  private saveCart(cart: Cart): void {
-    localStorage.setItem(this.CART_STORAGE_KEY, JSON.stringify(cart));
+  // Apply coupon to cart
+  async applyCoupon(code: string): Promise<Cart> {
+    try {
+      console.log(`Applying coupon ${code} to cart...`);
+
+      if (!this.cartId) {
+        const cart = await this.getCart();
+        this.cartId = cart.id;
+      }
+
+      const response = await axios.post(
+        `${this.baseUrl}/carts/${this.cartId}/coupon`,
+        { code },
+        {
+          headers: this.getHeaders(),
+          timeout: 5000,
+        }
+      );
+
+      console.log("Coupon applied successfully:", response.data);
+      return response.data;
+    } catch (error: any) {
+      console.error("Error applying coupon:", error);
+
+      // If using fallback cart in development
+      if (process.env.NODE_ENV === "development") {
+        const fallbackCart = await this.getFallbackCart();
+
+        // Apply a mock discount
+        fallbackCart.coupon = {
+          code: code,
+          discountType: "percentage",
+          discountValue: 10, // 10% discount
+          appliedAt: new Date().toISOString(),
+        };
+
+        // Recalculate totals with the coupon
+        this.updateFallbackCartTotals(fallbackCart);
+        localStorage.setItem("fallbackCart", JSON.stringify(fallbackCart));
+
+        return fallbackCart;
+      }
+
+      throw error;
+    }
   }
 
-  // Private method to update cart totals
-  private updateCartTotals(cart: Cart): void {
+  // Remove coupon from cart
+  async removeCoupon(): Promise<Cart> {
+    try {
+      console.log("Removing coupon from cart...");
+
+      if (!this.cartId) {
+        const cart = await this.getCart();
+        this.cartId = cart.id;
+      }
+
+      const response = await axios.delete(
+        `${this.baseUrl}/carts/${this.cartId}/coupon`,
+        {
+          headers: this.getHeaders(),
+          timeout: 5000,
+        }
+      );
+
+      console.log("Coupon removed successfully:", response.data);
+      return response.data;
+    } catch (error: any) {
+      console.error("Error removing coupon:", error);
+
+      // If using fallback cart in development
+      if (process.env.NODE_ENV === "development") {
+        const fallbackCart = await this.getFallbackCart();
+
+        // Remove the coupon
+        fallbackCart.coupon = undefined;
+
+        // Recalculate totals without the coupon
+        this.updateFallbackCartTotals(fallbackCart);
+        localStorage.setItem("fallbackCart", JSON.stringify(fallbackCart));
+
+        return fallbackCart;
+      }
+
+      throw error;
+    }
+  }
+
+  // Checkout cart
+  async checkoutCart(): Promise<Cart> {
+    try {
+      console.log("Checking out cart...");
+
+      if (!this.cartId) {
+        const cart = await this.getCart();
+        this.cartId = cart.id;
+      }
+
+      const response = await axios.post(
+        `${this.baseUrl}/carts/${this.cartId}/checkout`,
+        {},
+        {
+          headers: this.getHeaders(),
+          timeout: 5000,
+        }
+      );
+
+      console.log("Checkout successful:", response.data);
+
+      // After successful checkout, remove cart ID from storage
+      localStorage.removeItem("cartId");
+      this.cartId = "";
+
+      return response.data;
+    } catch (error: any) {
+      console.error("Error checking out cart:", error);
+
+      // If using fallback cart in development
+      if (process.env.NODE_ENV === "development") {
+        const fallbackCart = await this.getFallbackCart();
+
+        // Update cart status to completed
+        fallbackCart.status = "completed";
+        fallbackCart.updatedAt = new Date().toISOString();
+
+        // Save to localStorage (for reference)
+        localStorage.setItem("fallbackCart", JSON.stringify(fallbackCart));
+
+        // Remove cart ID from storage
+        localStorage.removeItem("cartId");
+        this.cartId = "";
+
+        return fallbackCart;
+      }
+
+      throw error;
+    }
+  }
+
+  // Merge guest cart into user cart after login
+  async mergeGuestCart(guestCartId: string): Promise<Cart> {
+    try {
+      console.log(`Merging guest cart ${guestCartId} into user cart...`);
+
+      if (!this.authToken) {
+        throw new Error("User must be authenticated to merge carts");
+      }
+
+      // Get user cart first
+      const userCart = await this.getCart();
+
+      const response = await axios.post(
+        `${this.baseUrl}/carts/${userCart.id}/merge`,
+        { guestCartId },
+        {
+          headers: this.getHeaders(),
+          timeout: 5000,
+        }
+      );
+
+      console.log("Cart merge successful:", response.data);
+
+      // Remove the guest cart ID from storage
+      localStorage.removeItem("cartId");
+      this.cartId = userCart.id;
+
+      return response.data;
+    } catch (error: any) {
+      console.error("Error merging carts:", error);
+
+      // If using fallback cart in development
+      if (process.env.NODE_ENV === "development") {
+        // For fallback, just return the current cart as if it's already merged
+        const fallbackCart = await this.getFallbackCart();
+        return fallbackCart;
+      }
+
+      throw error;
+    }
+  }
+
+  // Helper function to extract the correct image URL
+  private getImageUrl(product: any): string {
+    if (!product.image && !product.images) {
+      return "https://via.placeholder.com/150";
+    }
+
+    if (typeof product.image === "string") {
+      return product.image;
+    }
+
+    if (product.images) {
+      // Check for object with main property
+      if (typeof product.images === "object" && product.images.main) {
+        return product.images.main;
+      }
+      // Check for array of images
+      if (Array.isArray(product.images) && product.images.length > 0) {
+        return product.images[0];
+      }
+      // Handle case where images is a string
+      if (typeof product.images === "string") {
+        return product.images;
+      }
+    }
+
+    return "https://via.placeholder.com/150";
+  }
+
+  // Create a fallback cart for development use when backend is unavailable
+  private createFallbackCart(): Cart {
+    const fallbackCart: Cart = {
+      id: `fallback_${Date.now()}`,
+      items: [],
+      subtotal: 0,
+      taxAmount: 0,
+      shippingCost: 0,
+      totalAmount: 0,
+      status: "active",
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days from now
+    };
+
+    localStorage.setItem("fallbackCart", JSON.stringify(fallbackCart));
+    return fallbackCart;
+  }
+
+  // Get fallback cart from localStorage or create new one
+  private async getFallbackCart(): Promise<Cart> {
+    const fallbackCartStr = localStorage.getItem("fallbackCart");
+    if (fallbackCartStr) {
+      return JSON.parse(fallbackCartStr);
+    }
+    return this.createFallbackCart();
+  }
+
+  // Update totals for fallback cart
+  private updateFallbackCartTotals(cart: Cart): void {
     // Calculate subtotal
-    const subtotal = cart.items.reduce(
-      (sum, item) => sum + item.price * item.quantity,
+    cart.subtotal = cart.items.reduce(
+      (total, item) => total + item.price * item.quantity,
       0
     );
 
-    cart.subtotal = subtotal;
-    cart.totalAmount = subtotal; // In a real app, you might add tax, shipping, etc.
-  }
+    // Apply coupon if present
+    let discountedSubtotal = cart.subtotal;
+    if (cart.coupon) {
+      if (cart.coupon.discountType === "percentage") {
+        const discountAmount =
+          (cart.coupon.discountValue / 100) * cart.subtotal;
+        discountedSubtotal = cart.subtotal - discountAmount;
+      } else if (cart.coupon.discountType === "fixed") {
+        discountedSubtotal = Math.max(
+          0,
+          cart.subtotal - cart.coupon.discountValue
+        );
+      }
+    }
 
-  // Private method to create an empty cart
-  private createEmptyCart(): Cart {
-    return {
-      id: `cart_${Date.now()}`,
-      items: [],
-      subtotal: 0,
-      totalAmount: 0,
-    };
+    // Calculate tax (18%)
+    cart.taxAmount = discountedSubtotal * 0.18;
+
+    // Free shipping for orders over 299
+    cart.shippingCost = discountedSubtotal > 299 ? 0 : 40;
+
+    // Calculate total
+    cart.totalAmount = discountedSubtotal + cart.taxAmount + cart.shippingCost;
+
+    // Update timestamp
+    cart.updatedAt = new Date().toISOString();
   }
 }
 
