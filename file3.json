@@ -1,0 +1,74 @@
+[
+  {
+    "title": "Sattviko Spicy Trail Mix 80 GM",
+    "name": "sattviko-mint-makhanas",
+    "description": "Sattviko's Spicy Trail Mix is a combination of healthy fat and protein sources like peanuts, cashews, almonds, pumpkin seeds, and sunflower seeds. These nuts and seeds are a good source of nutrients like vitamin E, magnesium, zinc, copper, and of course, protein. This healthy trail mix is 100% sattvic and an amazing pre and post yoga-snack.",
+    "ingredientsDesc": "Peanuts (16%), Black Raisins (16%), Cranberries (12%), Apple Candy (12%), Cashew (8%), Almonds (8%), Sunflower Seeds, Pumpkin Seeds, Edible Common Salt, Sugar, Onion Powder, Garlic Powder, Chilli Powder, Starch, Flavour Enhancer (INS 621 & INS 635), Tomato Powder, Vinegar Powder, Soya Sauce Powder, Ginger Powder, Hydrolysed Vegetable Protein, Acidity Regulator (INS 330), Anitcaking Agent (INS 551), Permitted Natural Colour (INS 160c), Nature Identical Flavouring Substances",
+    "regularPrice": 125.0,
+    "salesPrice": 125.0,
+    "price": 125.0,
+    "category": "Trail Mix",
+    "images": [
+      "https://sattviko.com/cdn/shop/files/Sattviko_trail_mix.webp?v=1722076144&width=354",
+      "https://sattviko.com/cdn/shop/files/Trail_Mix_s3.webp?v=1723204762&width=354",
+      "https://sattviko.com/cdn/shop/files/Trail_Mix_Benefits.webp?v=1722234344&width=354",
+      "https://sattviko.com/cdn/shop/files/Your_paragraph_text_1.webp?v=1718788708&width=354"
+    ],
+    "stars": 3.0,
+    "reviewCount": 0,
+    "features": ["high-fibre"],
+    "weight": "80 GM",
+    "stock": 50,
+    "isTopSeller": true,
+    "createdAt": "",
+    "updatedAt": ""
+  },
+  {
+    "title": "Sattviko Roasted Smoky Schezwan Almonds 80 GM",
+    "name": "sattviko-roasted-smoky-schezwan-almonds",
+    "description": "Sattviko Roasted Smoky Schezwan Almonds are a rich source of vitamin D3, essential for calcium absorption, omega-3, a healthy fat, and contain 0% added oil. They come in a smoky Schezwan flavor, loved worldwide, with the added benefits of almonds.",
+    "ingredientsDesc": "Almonds (95%), Edible Common Salt, Sugar, Seasonings & Spices (Black Pepper, Red Chilli, Ginger, Garlic, Onion, Paprika) Added Yogic Herbs: Golden Turmeric, Cardamom, Cinnamon, Black Pepper, Ginger, Clove Holy Basil, Ashwagandha, Lemon, Bay Leaf, Cumin, Beet Root, Licorice",
+    "regularPrice": 144.0,
+    "salesPrice": 144.0,
+    "price": 144.0,
+    "category": "Nutritious Nuts",
+    "images": [
+      "https://sattviko.com/cdn/shop/files/sattviko_almond.webp?v=1721979708&width=354",
+      "https://sattviko.com/cdn/shop/files/Almonds_s1.webp?v=1723204761&width=354",
+      "https://sattviko.com/cdn/shop/files/Smoky_Schezwan_Almonds_Benefits.webp?v=1721979629&width=354",
+      "https://sattviko.com/cdn/shop/files/36.webp?v=1719057026&width=354"
+    ],
+    "stars": 4.0,
+    "reviewCount": 0,
+    "features": ["gluten-free"],
+    "weight": "80 GM",
+    "stock": 50,
+    "isTopSeller": true,
+    "createdAt": "",
+    "updatedAt": ""
+  },
+  {
+    "title": "Sattviko Roasted Spanish Tomato Cashews 80 GM",
+    "name": "sattviko-roasted-spanish-tomato-cashews",
+    "description": "Sattviko Roasted Tomato Cashews contain omega-3 goodness, come in a universally loved flavor, and have zero added oil, making them a great choice for kids. It is also sattvic, so loved by our community of yogis.",
+    "ingredientsDesc": "Cashew (90%), Flax Seeds, Sugar, Edible Common Salt, Tomato Powder, Onion Powder, Paprika Powder, Acidity Regulator (INS 330 & 262(ii)), Garlic Powder, Spices & Condiments (Fennel, Cumin, Cinnamon, Clove, Red Chilli), Maltodextrin, Flavour Enhancer ( INS 621 & INS 635), Hydrolysed Vegetable Protein, Anticaking Agent (INS 551), Contains Permitted Natural Colour (INS 160c), Natural and Nature Identical Flavouring Substances",
+    "regularPrice": 162.0,
+    "salesPrice": 162.0,
+    "price": 162.0,
+    "category": "Nutritious Nuts",
+    "images": [
+      "https://sattviko.com/cdn/shop/files/sattviko_spicy_spanish_cashew.webp?v=1721979708&width=354",
+      "https://sattviko.com/cdn/shop/files/Cashews_2.webp?v=1723204761&width=354",
+      "https://sattviko.com/cdn/shop/files/Spanish_Tomato_Cashews_Benefits.webp?v=1721979629&width=354",
+      "https://sattviko.com/cdn/shop/files/Cashews_s1.webp?v=1723204761&width=354"
+    ],
+    "stars": 5.0,
+    "reviewCount": 2,
+    "features": ["gluten-free"],
+    "weight": "40 GM",
+    "stock": 40,
+    "isTopSeller": true,
+    "createdAt": "",
+    "updatedAt": ""
+  }
+]

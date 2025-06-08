@@ -1,0 +1,72 @@
+/* productlist.module.css */
+.productGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 2rem;
+  margin: 2rem 0;
+  width: 100%;
+  max-width: 1400px;
+  margin: 2rem auto;
+  padding: 0 1rem;
+}
+
+.loading,
+.error,
+.noProducts {
+  text-align: center;
+  padding: 2rem;
+  grid-column: span 4;
+  font-size: 1.1rem;
+}
+
+.loading {
+  color: #555;
+}
+
+.error {
+  color: #d32f2f;
+}
+
+.noProducts {
+  color: #555;
+}
+
+/* Responsive grid adjustments */
+@media screen and (max-width: 1200px) {
+  .productGrid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.5rem;
+  }
+
+  .loading,
+  .error,
+  .noProducts {
+    grid-column: span 3;
+  }
+}
+
+@media screen and (max-width: 900px) {
+  .productGrid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.25rem;
+  }
+
+  .loading,
+  .error,
+  .noProducts {
+    grid-column: span 2;
+  }
+}
+
+@media screen and (max-width: 600px) {
+  .productGrid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .loading,
+  .error,
+  .noProducts {
+    grid-column: span 1;
+  }
+}

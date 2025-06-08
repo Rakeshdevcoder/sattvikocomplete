@@ -1,0 +1,24 @@
+:root {
+    font-family: "CustomFont1", sans-serif;
+  }
+  .banner {
+    width: 100%;
+    overflow: hidden;
+  }
+  
+  /* .media itself maintains the correct aspect ratio */
+  .media {
+    width: 100%;
+    aspect-ratio: 2240 / 420; /* matches your original 2240×420 */
+    position: relative;
+  }
+  
+  /* The img fills that area */
+  .image {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  

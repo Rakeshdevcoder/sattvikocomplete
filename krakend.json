@@ -1,0 +1,257 @@
+{
+  "version": 3,
+  "name": "satviko-gateway",
+  "port": 8080,
+
+  "extra_config": {
+    "github_com/devopsfaith/krakend-ratelimit/juju/router": {
+      "maxRate": 50,
+      "clientMaxRate": 5,
+      "strategy": "ip",
+      "capacity": 50,
+      "clientCapacity": 5,
+      "window": "1s"
+    }
+  },
+
+  "endpoints": [
+    {
+      "endpoint": "/auth/signup",
+      "method": "POST",
+      "backend": [
+        {
+          "host": ["http://auth-service:8080"],
+          "url_pattern": "/signup",
+          "extra_config": {
+            "qos/circuit-breaker": {
+              "interval": 60,
+              "timeout": 5,
+              "max_errors": 1,
+              "name": "cb-signup-1",
+              "log_status_change": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "endpoint": "/auth/login",
+      "method": "POST",
+      "extra_config": {
+        "github_com/devopsfaith/krakend-ratelimit/juju/router": {
+          "maxRate": 20,
+          "clientMaxRate": 5,
+          "strategy": "ip",
+          "capacity": 20,
+          "clientCapacity": 5,
+          "window": "1s"
+        }
+      },
+      "backend": [
+        {
+          "host": ["http://auth-service:8080"],
+          "url_pattern": "/login",
+          "extra_config": {
+            "qos/circuit-breaker": {
+              "interval": 60,
+              "timeout": 10,
+              "max_errors": 5,
+              "name": "cb-login-1",
+              "log_status_change": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "endpoint": "/products",
+      "method": "GET",
+      "backend": [
+        {
+          "host": ["http://product-service:8082"],
+          "url_pattern": "/",
+          "extra_config": {
+            "qos/circuit-breaker": {
+              "interval": 60,
+              "timeout": 10,
+              "max_errors": 10,
+              "name": "cb-products-list",
+              "log_status_change": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "endpoint": "/products/{id}",
+      "method": "GET",
+      "backend": [
+        {
+          "host": ["http://product-service:8082"],
+          "url_pattern": "/{id}",
+          "extra_config": {
+            "qos/circuit-breaker": {
+              "interval": 60,
+              "timeout": 10,
+              "max_errors": 10,
+              "name": "cb-products-detail",
+              "log_status_change": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "endpoint": "/products",
+      "method": "POST",
+      "backend": [
+        {
+          "host": ["http://product-service:8082"],
+          "url_pattern": "/",
+          "extra_config": {
+            "qos/circuit-breaker": {
+              "interval": 60,
+              "timeout": 10,
+              "max_errors": 5,
+              "name": "cb-products-create",
+              "log_status_change": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "endpoint": "/products/{id}",
+      "method": "PUT",
+      "backend": [
+        {
+          "host": ["http://product-service:8082"],
+          "url_pattern": "/{id}",
+          "extra_config": {
+            "qos/circuit-breaker": {
+              "interval": 60,
+              "timeout": 10,
+              "max_errors": 5,
+              "name": "cb-products-update",
+              "log_status_change": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "endpoint": "/products/{id}",
+      "method": "DELETE",
+      "backend": [
+        {
+          "host": ["http://product-service:8082"],
+          "url_pattern": "/{id}",
+          "extra_config": {
+            "qos/circuit-breaker": {
+              "interval": 60,
+              "timeout": 10,
+              "max_errors": 5,
+              "name": "cb-products-delete",
+              "log_status_change": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "endpoint": "/orders",
+      "method": "GET",
+      "backend": [
+        {
+          "host": ["http://order-service:8081"],
+          "url_pattern": "/",
+          "extra_config": {
+            "qos/circuit-breaker": {
+              "interval": 60,
+              "timeout": 10,
+              "max_errors": 10,
+              "name": "cb-orders-list",
+              "log_status_change": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "endpoint": "/orders/{id}",
+      "method": "GET",
+      "backend": [
+        {
+          "host": ["http://order-service:8081"],
+          "url_pattern": "/{id}",
+          "extra_config": {
+            "qos/circuit-breaker": {
+              "interval": 60,
+              "timeout": 10,
+              "max_errors": 10,
+              "name": "cb-orders-detail",
+              "log_status_change": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "endpoint": "/orders",
+      "method": "POST",
+      "backend": [
+        {
+          "host": ["http://order-service:8081"],
+          "url_pattern": "/",
+          "extra_config": {
+            "qos/circuit-breaker": {
+              "interval": 60,
+              "timeout": 10,
+              "max_errors": 5,
+              "name": "cb-orders-create",
+              "log_status_change": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "endpoint": "/orders/{id}",
+      "method": "PUT",
+      "backend": [
+        {
+          "host": ["http://order-service:8081"],
+          "url_pattern": "/{id}",
+          "extra_config": {
+            "qos/circuit-breaker": {
+              "interval": 60,
+              "timeout": 10,
+              "max_errors": 5,
+              "name": "cb-orders-update",
+              "log_status_change": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "endpoint": "/orders/{id}",
+      "method": "DELETE",
+      "backend": [
+        {
+          "host": ["http://order-service:8081"],
+          "url_pattern": "/{id}",
+          "extra_config": {
+            "qos/circuit-breaker": {
+              "interval": 60,
+              "timeout": 10,
+              "max_errors": 5,
+              "name": "cb-orders-delete",
+              "log_status_change": true
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

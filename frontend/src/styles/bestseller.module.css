@@ -1,0 +1,69 @@
+/* Main container styles */
+.collectionSection {
+  padding-top: 21px;
+  padding-bottom: 33px;
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+@media screen and (min-width: 750px) {
+  .collectionSection {
+    padding-top: 28px;
+    padding-bottom: 44px;
+  }
+}
+
+/* Title styles */
+.titleWrapper {
+  margin-bottom: 1.5rem;
+  padding: 0 1.5rem;
+  text-align: start;
+}
+
+.title {
+  font-size: 3rem;
+  margin: 0;
+  font-weight: 600;
+  color: #333;
+}
+
+/* Product grid layout */
+.productGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+  padding: 0 1rem;
+}
+
+@media screen and (min-width: 750px) {
+  .productGrid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.5rem;
+  }
+}
+
+@media screen and (min-width: 990px) {
+  .productGrid {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 2rem;
+  }
+}
+
+/* View all link styles */
+.viewAllContainer {
+  text-align: center;
+  margin-top: 2rem;
+}
+
+.viewAllLink {
+  color: #333;
+  font-size: 1rem;
+  text-decoration: underline;
+  font-weight: 500;
+  transition: color 0.2s ease;
+}
+
+.viewAllLink:hover {
+  color: #666;
+}

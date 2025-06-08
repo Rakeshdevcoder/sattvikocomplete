@@ -1,0 +1,310 @@
+/* src/styles/phoneauth.module.css */
+.phoneAuthModal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.phoneAuthContainer {
+  display: flex;
+  width: 800px;
+  max-width: 90%;
+  height: 380px;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.2);
+}
+
+.closeButton {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: none;
+  border: none;
+  color: #fff;
+  font-size: 22px;
+  cursor: pointer;
+  z-index: 1010; /* Higher z-index to ensure it's above everything */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+}
+
+.closeButton:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Left side - black background with branding */
+.authHeader {
+  width: 50%;
+  background-color: #000;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 30px;
+  position: relative;
+}
+
+.logoContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 30px;
+}
+
+.logo {
+  width: 160px;
+  margin-bottom: 15px;
+}
+
+.kwikPassLogo {
+  height: 22px;
+}
+
+.authTitle {
+  color: #fff;
+  font-size: 20px;
+  font-weight: 500;
+  text-align: center;
+}
+
+/* Right side - white background with form */
+.authContent {
+  width: 50%;
+  background-color: white;
+  padding: 40px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.phoneForm {
+  display: flex;
+  flex-direction: column;
+}
+
+.inputContainer {
+  margin-bottom: 20px;
+}
+
+.phoneInput {
+  width: 100%;
+  height: 48px;
+  padding: 0 15px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 16px;
+  outline: none;
+}
+
+.phoneInput:focus {
+  border-color: #999;
+}
+
+.checkboxContainer {
+  display: flex;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.checkbox {
+  width: 16px;
+  height: 16px;
+  margin-right: 10px;
+}
+
+.checkboxLabel {
+  font-size: 14px;
+  color: #666;
+}
+
+.submitButton {
+  background-color: #000;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  height: 48px;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  margin-bottom: 15px;
+}
+
+.submitButton:disabled {
+  background-color: #999;
+  cursor: not-allowed;
+}
+
+.termsText {
+  font-size: 12px;
+  color: #666;
+  text-align: center;
+  line-height: 1.5;
+  margin-top: 10px;
+}
+
+.termsLink {
+  color: #333;
+  text-decoration: underline;
+}
+
+/* OTP Screen Styles */
+.otpContainer {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.otpTitle {
+  font-size: 20px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 15px;
+  text-align: center;
+}
+
+.otpMessage {
+  font-size: 14px;
+  color: #666;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.phoneDisplay {
+  font-weight: 600;
+  color: #333;
+  margin-top: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.editButton {
+  background: none;
+  border: none;
+  color: #3a8ced;
+  font-size: 14px;
+  cursor: pointer;
+  margin-left: 10px;
+  text-decoration: underline;
+}
+
+.otpInputContainer {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 20px;
+  width: 100%;
+}
+
+.otpInput {
+  width: 48px;
+  height: 48px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  text-align: center;
+  font-size: 18px;
+  font-weight: 600;
+  outline: none;
+}
+
+.otpInput:focus {
+  border-color: #333;
+}
+
+.resendButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  color: #666;
+  font-size: 14px;
+  margin-bottom: 20px;
+  cursor: pointer;
+}
+
+.resendButton:disabled {
+  opacity: 0.7;
+  cursor: default;
+}
+
+.clockIcon {
+  margin-right: 6px;
+}
+
+.verifyButton {
+  width: 100%;
+  background-color: #000;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  height: 48px;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.verifyButton:disabled {
+  background-color: #999;
+  cursor: not-allowed;
+}
+
+/* Add these to your phoneauth.module.css file */
+.errorMessage {
+  background-color: #fff0f0;
+  color: #d32f2f;
+  padding: 12px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  font-size: 0.875rem;
+  display: flex;
+  align-items: center;
+}
+
+.errorIcon {
+  margin-right: 8px;
+  flex-shrink: 0;
+}
+
+.recaptchaContainer {
+  position: relative;
+  z-index: 1005;
+  margin-top: 10px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .phoneAuthContainer {
+    flex-direction: column;
+    height: auto;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+
+  .authHeader,
+  .authContent {
+    width: 100%;
+    padding: 25px;
+  }
+
+  .authHeader {
+    padding-top: 40px;
+    padding-bottom: 30px;
+  }
+
+  .logoContainer {
+    margin-bottom: 20px;
+  }
+}

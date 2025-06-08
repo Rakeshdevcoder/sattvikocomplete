@@ -1,0 +1,177 @@
+/* Card container styles */
+:root {
+  font-family: "CustomFont1", sans-serif;
+}
+.cardWrapper {
+  width: 100%;
+  max-width: 320px;
+  margin: 0 auto;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.card {
+  background-color: #ffffff;
+  border-radius: 12px;
+  overflow: hidden;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.2s ease;
+  padding: 0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.card:hover {
+  transform: translateY(-3px);
+}
+
+/* Image container styles */
+.imageContainer {
+  width: 100%;
+  padding-top: 90%; /* Aspect ratio ~1:1 */
+  position: relative;
+  background-color: #f7f7f7;
+  border-radius: 12px 12px 0 0;
+  overflow: hidden;
+}
+
+.productImage {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s ease;
+}
+
+/* Content container */
+.contentContainer {
+  padding: 15px 15px 5px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-grow: 1;
+}
+
+/* Title styles */
+.titleContainer {
+  text-align: center;
+  margin-bottom: 5px;
+  width: 100%;
+}
+
+.cardHeading {
+  font-size: 1.2rem;
+  font-weight: bold;
+  margin: 0;
+  line-height: 1.4;
+  color: #333;
+  text-align: center;
+}
+
+.card:hover .cardHeading {
+  text-decoration: underline;
+}
+
+.productLink {
+  color: inherit;
+  text-decoration: none;
+}
+
+.productLink:hover {
+  text-decoration: underline;
+}
+
+/* Rating container */
+.ratingContainer {
+  display: flex;
+  justify-content: center;
+  margin: 8px 0;
+  width: 100%;
+}
+
+/* Rating styles */
+.rating {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.stars {
+  display: flex;
+  color: black;
+}
+
+.starFilled {
+  color: black;
+}
+
+.starEmpty {
+  color: #e0e0e0;
+}
+
+.reviewCount {
+  font-size: 0.75rem;
+  color: #666;
+  margin: 0;
+}
+
+/* Price styles */
+.price {
+  margin: 5px 0 15px;
+  text-align: center;
+  width: 100%;
+}
+
+.priceRegular {
+  font-weight: 100;
+  font-size: 1rem;
+  color: #333;
+}
+
+/* Button container */
+.buttonContainer {
+  padding: 0 25px 25px;
+  width: 100%;
+}
+
+/* Button styles */
+.addToCartButton {
+  background-color: transparent;
+  color: #333;
+  border: 1px solid #333;
+  border-radius: 10px;
+  padding: 1rem 1rem;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  width: 100%;
+  transition: all 0.2s ease;
+}
+
+.addToCartButton:hover {
+  border-color: #666;
+}
+
+@media screen and (max-width: 749px) {
+  .cardWrapper {
+    max-width: 100%;
+  }
+
+  .cardHeading {
+    font-size: 0.9rem;
+  }
+
+  .priceRegular {
+    font-size: 0.95rem;
+  }
+
+  .addToCartButton {
+    padding: 0.6rem 0.75rem;
+    font-size: 0.85rem;
+  }
+}
