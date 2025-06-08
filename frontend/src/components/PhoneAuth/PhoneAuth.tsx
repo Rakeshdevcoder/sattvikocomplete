@@ -1,7 +1,7 @@
 // src/components/PhoneAuth/PhoneAuth.tsx
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../../context/AuthContext";
-import { FiX, FiPhone, FiLock } from "react-icons/fi";
+import { FiX } from "react-icons/fi";
 import styles from "../../styles/phoneauth.module.css";
 
 interface PhoneAuthProps {
@@ -11,10 +11,11 @@ interface PhoneAuthProps {
 const PhoneAuth: React.FC<PhoneAuthProps> = ({ onClose }) => {
   const { login, verifyOTP, loading, error, clearError } = useAuth();
 
-  const [step, setStep] = useState<"phone" | "otp">("phone");
+  const [step, setStep] = useState<"phone" | "otp" | "success">("phone");
   const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState("");
   const [countdown, setCountdown] = useState(0);
+  const [notifyOffers, setNotifyOffers] = useState(false);
 
   // Countdown timer for resend OTP
   useEffect(() => {
@@ -28,6 +29,16 @@ const PhoneAuth: React.FC<PhoneAuthProps> = ({ onClose }) => {
   useEffect(() => {
     clearError();
   }, [step, clearError]);
+
+  // Auto close after success
+  useEffect(() => {
+    if (step === "success") {
+      const timer = setTimeout(() => {
+        onClose();
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [step, onClose]);
 
   const handlePhoneSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -58,7 +69,7 @@ const PhoneAuth: React.FC<PhoneAuthProps> = ({ onClose }) => {
   const handleOTPSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!otp.trim()) {
+    if (!otp.trim() || otp.length !== 6) {
       return;
     }
 
@@ -74,7 +85,7 @@ const PhoneAuth: React.FC<PhoneAuthProps> = ({ onClose }) => {
 
     try {
       await verifyOTP(formattedPhone, otp.trim());
-      onClose(); // Close modal on successful login
+      setStep("success");
     } catch (error) {
       // Error is handled in the auth context
     }
@@ -102,54 +113,84 @@ const PhoneAuth: React.FC<PhoneAuthProps> = ({ onClose }) => {
     }
   };
 
-  const handleBackToPhone = () => {
-    setStep("phone");
-    setOtp("");
-    clearError();
-    // Clear stored auth phone
-    localStorage.removeItem("authPhone");
+  const handleOtpChange = (value: string, index: number) => {
+    if (value.match(/^[0-9]$/)) {
+      const newOtp = otp.split("");
+      newOtp[index] = value;
+      setOtp(newOtp.join(""));
+
+      // Auto-focus next input
+      if (index < 5) {
+        const nextInput = document.getElementById(`otp-${index + 1}`);
+        if (nextInput) {
+          (nextInput as HTMLInputElement).focus();
+        }
+      }
+    }
+  };
+
+  const handleOtpKeyDown = (
+    e: React.KeyboardEvent<HTMLInputElement>,
+    index: number
+  ) => {
+    if (e.key === "Backspace" && !otp[index] && index > 0) {
+      const prevInput = document.getElementById(`otp-${index - 1}`);
+      if (prevInput) {
+        (prevInput as HTMLInputElement).focus();
+      }
+    }
   };
 
   return (
     <div className={styles.overlay}>
       <div className={styles.modal}>
-        <div className={styles.header}>
-          <h2 className={styles.title}>
-            {step === "phone" ? "Sign In" : "Verify OTP"}
-          </h2>
-          <button
-            className={styles.closeButton}
-            onClick={onClose}
-            aria-label="Close"
-          >
-            <FiX size={20} />
-          </button>
+        <button
+          className={styles.closeButton}
+          onClick={onClose}
+          aria-label="Close"
+        >
+          <FiX size={24} />
+        </button>
+
+        {/* Left side - Black section */}
+        <div className={styles.leftSection}>
+          <img
+            src="https://sattviko.com/cdn/shop/files/logo_foodyoga.png?v=1685712767"
+            alt="Sattviko"
+            className={styles.logo}
+          />
+          <div className={styles.poweredBy}>
+            <span>Powered by</span>
+            <span className={styles.kwikPass}>
+              Kwik<span className={styles.passText}>Pass</span>
+            </span>
+          </div>
+          <h2 className={styles.tagline}>Login now to avail best offers!</h2>
         </div>
 
-        <div className={styles.content}>
-          {step === "phone" ? (
+        {/* Right side - White section */}
+        <div className={styles.rightSection}>
+          {step === "phone" && (
             <form onSubmit={handlePhoneSubmit} className={styles.form}>
-              <div className={styles.inputGroup}>
-                <label htmlFor="phone" className={styles.label}>
-                  Phone Number
-                </label>
-                <div className={styles.inputWrapper}>
-                  <FiPhone className={styles.inputIcon} />
-                  <input
-                    id="phone"
-                    type="tel"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    placeholder="Enter your phone number"
-                    className={styles.input}
-                    disabled={loading}
-                    required
-                  />
-                </div>
-                <p className={styles.helpText}>
-                  We'll send you a verification code
-                </p>
-              </div>
+              <input
+                type="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="Enter Mobile Number"
+                className={styles.phoneInput}
+                disabled={loading}
+                required
+              />
+
+              <label className={styles.checkboxLabel}>
+                <input
+                  type="checkbox"
+                  checked={notifyOffers}
+                  onChange={(e) => setNotifyOffers(e.target.checked)}
+                  className={styles.checkbox}
+                />
+                <span>Notify me with offers & updates</span>
+              </label>
 
               {error && <div className={styles.error}>{error}</div>}
 
@@ -158,30 +199,43 @@ const PhoneAuth: React.FC<PhoneAuthProps> = ({ onClose }) => {
                 className={styles.submitButton}
                 disabled={loading || !phone.trim()}
               >
-                {loading ? "Sending..." : "Send OTP"}
+                {loading ? "Sending..." : "Submit"}
               </button>
+
+              <p className={styles.termsText}>
+                I accept that I have read & understood your
+                <br />
+                <a href="/privacy-policy" className={styles.link}>
+                  Privacy Policy
+                </a>{" "}
+                and{" "}
+                <a href="/terms" className={styles.link}>
+                  T&Cs
+                </a>
+                .
+              </p>
             </form>
-          ) : (
+          )}
+
+          {step === "otp" && (
             <form onSubmit={handleOTPSubmit} className={styles.form}>
-              <div className={styles.inputGroup}>
-                <label htmlFor="otp" className={styles.label}>
-                  Enter OTP
-                </label>
-                <div className={styles.inputWrapper}>
-                  <FiLock className={styles.inputIcon} />
+              <h3 className={styles.otpTitle}>Enter OTP</h3>
+              <p className={styles.otpSubtitle}>Code sent to {phone}</p>
+
+              <div className={styles.otpInputContainer}>
+                {[0, 1, 2, 3, 4, 5].map((index) => (
                   <input
-                    id="otp"
+                    key={index}
+                    id={`otp-${index}`}
                     type="text"
-                    value={otp}
-                    onChange={(e) => setOtp(e.target.value)}
-                    placeholder="Enter 6-digit code"
-                    className={styles.input}
+                    value={otp[index] || ""}
+                    onChange={(e) => handleOtpChange(e.target.value, index)}
+                    onKeyDown={(e) => handleOtpKeyDown(e, index)}
+                    className={styles.otpInput}
+                    maxLength={1}
                     disabled={loading}
-                    maxLength={6}
-                    required
                   />
-                </div>
-                <p className={styles.helpText}>Code sent to {phone}</p>
+                ))}
               </div>
 
               {error && <div className={styles.error}>{error}</div>}
@@ -189,31 +243,31 @@ const PhoneAuth: React.FC<PhoneAuthProps> = ({ onClose }) => {
               <button
                 type="submit"
                 className={styles.submitButton}
-                disabled={loading || !otp.trim()}
+                disabled={loading || otp.length !== 6}
               >
-                {loading ? "Verifying..." : "Verify & Sign In"}
+                {loading ? "Verifying..." : "Verify"}
               </button>
 
-              <div className={styles.actions}>
-                <button
-                  type="button"
-                  onClick={handleResendOTP}
-                  className={styles.linkButton}
-                  disabled={countdown > 0 || loading}
-                >
-                  {countdown > 0 ? `Resend in ${countdown}s` : "Resend OTP"}
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handleBackToPhone}
-                  className={styles.linkButton}
-                  disabled={loading}
-                >
-                  Change Phone Number
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={handleResendOTP}
+                className={styles.resendButton}
+                disabled={countdown > 0 || loading}
+              >
+                {countdown > 0 ? `Resend OTP in ${countdown}s` : "Resend OTP"}
+              </button>
             </form>
+          )}
+
+          {step === "success" && (
+            <div className={styles.successContainer}>
+              <h2 className={styles.successTitle}>Congratulations!</h2>
+              <h3 className={styles.successSubtitle}>Login successful</h3>
+              <div className={styles.loadingContainer}>
+                <div className={styles.spinner}></div>
+                <p className={styles.signingText}>Signing you in</p>
+              </div>
+            </div>
           )}
         </div>
       </div>
