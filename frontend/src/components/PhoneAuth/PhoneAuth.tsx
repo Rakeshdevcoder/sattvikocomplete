@@ -149,15 +149,14 @@ const PhoneAuth: React.FC<PhoneAuthProps> = ({ onClose }) => {
 
   return (
     <div className={styles.overlay}>
+      <button
+        className={styles.closeButton}
+        onClick={onClose}
+        aria-label="Close"
+      >
+        ✕
+      </button>
       <div className={styles.modal}>
-        <button
-          className={styles.closeButton}
-          onClick={onClose}
-          aria-label="Close"
-        >
-          ✕
-        </button>
-
         {/* Left side - Black section */}
         <div className={styles.leftSection}>
           <div className={styles.logoRow}>

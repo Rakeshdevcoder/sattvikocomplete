@@ -13,7 +13,6 @@ import {
   FiChevronDown,
   FiX,
   FiShoppingCart,
-  FiLogOut,
 } from "react-icons/fi";
 
 // Define a type for the bundle product
@@ -65,7 +64,7 @@ const HeaderComponent: React.FC = () => {
   const remainingItems = bundleLimit - selectedBundleProducts.length;
 
   // Use auth context
-  const { user, loading, logout } = useAuth();
+  const { user, loading } = useAuth();
 
   // Get cart context
   const { cartCount, toggleCart } = useCart();
@@ -148,18 +147,6 @@ const HeaderComponent: React.FC = () => {
     setMobileMenuOpen(false);
   };
 
-  const getUserPhone = () => {
-    return user?.phone || "User";
-  };
-
-  const handleLogout = async () => {
-    try {
-      await logout();
-    } catch (error) {
-      console.error("Logout error:", error);
-    }
-  };
-
   return (
     <BundleContext.Provider
       value={{
@@ -230,33 +217,13 @@ const HeaderComponent: React.FC = () => {
                       <FiUser className={styles.icon} />
                     </button>
                   ) : (
-                    <div className={styles.userMenu}>
-                      <button className={styles.iconButton}>
-                        <FiUser className={styles.icon} />
-                      </button>
-                      <div className={styles.userDropdown}>
-                        <div className={styles.userInfo}>
-                          <span className={styles.userPhone}>
-                            {getUserPhone()}
-                          </span>
-                        </div>
-                        <div className={styles.userActions}>
-                          <a href="/account" className={styles.userLink}>
-                            My Account
-                          </a>
-                          <a href="/orders" className={styles.userLink}>
-                            My Orders
-                          </a>
-                          <button
-                            className={styles.logoutButton}
-                            onClick={handleLogout}
-                          >
-                            <FiLogOut className={styles.logoutIcon} />
-                            Sign Out
-                          </button>
-                        </div>
-                      </div>
-                    </div>
+                    <a
+                      href="/account"
+                      className={styles.iconButton}
+                      aria-label="Account"
+                    >
+                      <FiUser className={styles.icon} />
+                    </a>
                   ))}
               </>
             )}
@@ -825,21 +792,10 @@ const HeaderComponent: React.FC = () => {
                       Sign In / Register
                     </button>
                   ) : (
-                    <>
-                      <div
-                        className={`${styles.mobileNavLink} ${styles.mobileUserInfo}`}
-                      >
-                        <FiUser className={styles.icon} />
-                        <span>{getUserPhone()}</span>
-                      </div>
-                      <button
-                        className={`${styles.mobileNavLink} ${styles.mobileLogoutButton}`}
-                        onClick={handleLogout}
-                      >
-                        <FiLogOut className={styles.icon} />
-                        Sign Out
-                      </button>
-                    </>
+                    <a href="/account" className={styles.mobileNavLink}>
+                      <FiUser className={styles.icon} />
+                      My Account
+                    </a>
                   )}
                 </li>
               </ul>

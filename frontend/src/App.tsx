@@ -23,6 +23,7 @@ import AllProduct from "./pages/AllProduct";
 import ProductDetail from "./pages/ProductDetail";
 import BundlePage from "./pages/BundlePage";
 import Home from "./pages/Home";
+import Account from "./pages/Account";
 
 const App = () => {
   return (
@@ -68,9 +69,7 @@ const App = () => {
                 path="/account"
                 element={
                   <ProtectedRoute>
-                    <div className="account-page">
-                      <h1>My Account</h1>
-                    </div>
+                    <Account />
                   </ProtectedRoute>
                 }
               />

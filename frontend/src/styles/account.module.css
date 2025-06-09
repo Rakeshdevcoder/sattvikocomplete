@@ -1,0 +1,126 @@
+/* src/styles/account.module.css */
+.accountContainer {
+    min-height: 60vh;
+    background-color: #fff;
+    padding: 60px 0;
+  }
+  
+  .accountContent {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 20px;
+  }
+  
+  .pageTitle {
+    font-size: 48px;
+    font-weight: 400;
+    color: #1a1a1a;
+    margin: 0 0 20px 0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  }
+  
+  .logoutLink {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: none;
+    border: none;
+    color: #666;
+    font-size: 16px;
+    text-decoration: underline;
+    cursor: pointer;
+    padding: 0;
+    margin-bottom: 60px;
+    font-family: inherit;
+  }
+  
+  .logoutLink:hover {
+    color: #333;
+  }
+  
+  .logoutIcon {
+    width: 16px;
+    height: 16px;
+  }
+  
+  .contentGrid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 60px;
+    align-items: start;
+  }
+  
+  .orderSection,
+  .detailsSection {
+    padding: 0;
+  }
+  
+  .sectionTitle {
+    font-size: 24px;
+    font-weight: 400;
+    color: #1a1a1a;
+    margin: 0 0 20px 0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  }
+  
+  .emptyText {
+    font-size: 16px;
+    color: #666;
+    margin: 0;
+    line-height: 1.5;
+  }
+  
+  .addressLink {
+    font-size: 16px;
+    color: #666;
+    text-decoration: underline;
+    display: inline-block;
+  }
+  
+  .addressLink:hover {
+    color: #333;
+  }
+  
+  /* Responsive design */
+  @media (max-width: 768px) {
+    .accountContainer {
+      padding: 40px 0;
+    }
+  
+    .pageTitle {
+      font-size: 36px;
+    }
+  
+    .contentGrid {
+      grid-template-columns: 1fr;
+      gap: 40px;
+    }
+  
+    .sectionTitle {
+      font-size: 20px;
+    }
+  }
+  
+  @media (max-width: 480px) {
+    .accountContainer {
+      padding: 30px 0;
+    }
+  
+    .pageTitle {
+      font-size: 28px;
+    }
+  
+    .logoutLink {
+      margin-bottom: 40px;
+    }
+  
+    .sectionTitle {
+      font-size: 18px;
+      margin-bottom: 15px;
+    }
+  
+    .emptyText,
+    .addressLink {
+      font-size: 14px;
+    }
+  }
