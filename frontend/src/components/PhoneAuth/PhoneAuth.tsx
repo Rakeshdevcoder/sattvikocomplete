@@ -1,7 +1,7 @@
 // src/components/PhoneAuth/PhoneAuth.tsx
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../../context/AuthContext";
-import { FiX } from "react-icons/fi";
+import { FiX, FiClock } from "react-icons/fi";
 import styles from "../../styles/phoneauth.module.css";
 
 interface PhoneAuthProps {
@@ -60,7 +60,7 @@ const PhoneAuth: React.FC<PhoneAuthProps> = ({ onClose }) => {
     try {
       await login(formattedPhone);
       setStep("otp");
-      setCountdown(60); // 60 seconds countdown
+      setCountdown(30); // 30 seconds countdown
     } catch (error) {
       // Error is handled in the auth context
     }
@@ -106,7 +106,7 @@ const PhoneAuth: React.FC<PhoneAuthProps> = ({ onClose }) => {
 
     try {
       await login(formattedPhone);
-      setCountdown(60);
+      setCountdown(30);
       setOtp(""); // Clear previous OTP
     } catch (error) {
       // Error is handled in the auth context
@@ -141,6 +141,12 @@ const PhoneAuth: React.FC<PhoneAuthProps> = ({ onClose }) => {
     }
   };
 
+  const handleEditPhone = () => {
+    setStep("phone");
+    setOtp("");
+    setCountdown(0);
+  };
+
   return (
     <div className={styles.overlay}>
       <div className={styles.modal}>
@@ -149,26 +155,29 @@ const PhoneAuth: React.FC<PhoneAuthProps> = ({ onClose }) => {
           onClick={onClose}
           aria-label="Close"
         >
-          <FiX size={24} />
+          ✕
         </button>
 
         {/* Left side - Black section */}
         <div className={styles.leftSection}>
-          <img
-            src="https://sattviko.com/cdn/shop/files/logo_foodyoga.png?v=1685712767"
-            alt="Sattviko"
-            className={styles.logo}
-          />
-          <div className={styles.poweredBy}>
-            <span>Powered by</span>
-            <span className={styles.kwikPass}>
-              Kwik<span className={styles.passText}>Pass</span>
-            </span>
+          <div className={styles.logoRow}>
+            <img
+              src="https://sattviko.com/cdn/shop/files/logo_foodyoga.png?v=1685712767"
+              alt="Sattviko"
+              className={styles.logo}
+            />
+            <div className={styles.poweredBy}>
+              <img
+                src="/kwikpass.png"
+                alt="KwikPass"
+                className={styles.kwikPassLogo}
+              />
+            </div>
           </div>
           <h2 className={styles.tagline}>Login now to avail best offers!</h2>
         </div>
 
-        {/* Right side - White section */}
+        {/* Right side - White card */}
         <div className={styles.rightSection}>
           {step === "phone" && (
             <form onSubmit={handlePhoneSubmit} className={styles.form}>
@@ -219,8 +228,19 @@ const PhoneAuth: React.FC<PhoneAuthProps> = ({ onClose }) => {
 
           {step === "otp" && (
             <form onSubmit={handleOTPSubmit} className={styles.form}>
-              <h3 className={styles.otpTitle}>Enter OTP</h3>
-              <p className={styles.otpSubtitle}>Code sent to {phone}</p>
+              <h3 className={styles.otpTitle}>OTP Verification</h3>
+              <p className={styles.otpSubtitle}>
+                Verification code sent to
+                <br />
+                <strong>{phone}</strong>
+                <button
+                  type="button"
+                  onClick={handleEditPhone}
+                  className={styles.editButton}
+                >
+                  Edit
+                </button>
+              </p>
 
               <div className={styles.otpInputContainer}>
                 {[0, 1, 2, 3, 4, 5].map((index) => (
@@ -238,6 +258,15 @@ const PhoneAuth: React.FC<PhoneAuthProps> = ({ onClose }) => {
                 ))}
               </div>
 
+              {countdown > 0 && (
+                <div className={styles.resendContainer}>
+                  <div className={styles.resendText}>
+                    <FiClock className={styles.clockIcon} />
+                    <span>Resend OTP in {countdown} Sec</span>
+                  </div>
+                </div>
+              )}
+
               {error && <div className={styles.error}>{error}</div>}
 
               <button
@@ -248,14 +277,16 @@ const PhoneAuth: React.FC<PhoneAuthProps> = ({ onClose }) => {
                 {loading ? "Verifying..." : "Verify"}
               </button>
 
-              <button
-                type="button"
-                onClick={handleResendOTP}
-                className={styles.resendButton}
-                disabled={countdown > 0 || loading}
-              >
-                {countdown > 0 ? `Resend OTP in ${countdown}s` : "Resend OTP"}
-              </button>
+              {countdown === 0 && (
+                <button
+                  type="button"
+                  onClick={handleResendOTP}
+                  className={styles.resendButton}
+                  disabled={loading}
+                >
+                  Resend OTP
+                </button>
+              )}
             </form>
           )}
 
