@@ -9,10 +9,10 @@
     "price": 125.0,
     "category": "Trail Mix",
     "images": [
-      "https://sattviko.com/cdn/shop/files/Sattviko_trail_mix.webp?v=1722076144&width=354",
-      "https://sattviko.com/cdn/shop/files/Trail_Mix_s3.webp?v=1723204762&width=354",
-      "https://sattviko.com/cdn/shop/files/Trail_Mix_Benefits.webp?v=1722234344&width=354",
-      "https://sattviko.com/cdn/shop/files/Your_paragraph_text_1.webp?v=1718788708&width=354"
+      "https://sattviko.com/cdn/shop/files/Sattviko_trail_mix.webp?v=1722076144&width=1946",
+      "https://sattviko.com/cdn/shop/files/Trail_Mix_s3.webp?v=1723204762&width=1946",
+      "https://sattviko.com/cdn/shop/files/Trail_Mix_Benefits.webp?v=1722234344&width=1946",
+      "https://sattviko.com/cdn/shop/files/Your_paragraph_text_1.webp?v=1718788708&width=1946"
     ],
     "stars": 3.0,
     "reviewCount": 0,
@@ -33,10 +33,10 @@
     "price": 144.0,
     "category": "Nutritious Nuts",
     "images": [
-      "https://sattviko.com/cdn/shop/files/sattviko_almond.webp?v=1721979708&width=354",
-      "https://sattviko.com/cdn/shop/files/Almonds_s1.webp?v=1723204761&width=354",
-      "https://sattviko.com/cdn/shop/files/Smoky_Schezwan_Almonds_Benefits.webp?v=1721979629&width=354",
-      "https://sattviko.com/cdn/shop/files/36.webp?v=1719057026&width=354"
+      "https://sattviko.com/cdn/shop/files/sattviko_almond.webp?v=1721979708&width=1946",
+      "https://sattviko.com/cdn/shop/files/Almonds_s1.webp?v=1723204761&width=1946",
+      "https://sattviko.com/cdn/shop/files/Smoky_Schezwan_Almonds_Benefits.webp?v=1721979629&width=1946",
+      "https://sattviko.com/cdn/shop/files/36.webp?v=1719057026&width=1946"
     ],
     "stars": 4.0,
     "reviewCount": 0,
@@ -57,10 +57,10 @@
     "price": 162.0,
     "category": "Nutritious Nuts",
     "images": [
-      "https://sattviko.com/cdn/shop/files/sattviko_spicy_spanish_cashew.webp?v=1721979708&width=354",
-      "https://sattviko.com/cdn/shop/files/Cashews_2.webp?v=1723204761&width=354",
-      "https://sattviko.com/cdn/shop/files/Spanish_Tomato_Cashews_Benefits.webp?v=1721979629&width=354",
-      "https://sattviko.com/cdn/shop/files/Cashews_s1.webp?v=1723204761&width=354"
+      "https://sattviko.com/cdn/shop/files/sattviko_spicy_spanish_cashew.webp?v=1721979708&width=1946",
+      "https://sattviko.com/cdn/shop/files/Cashews_2.webp?v=1723204761&width=1946",
+      "https://sattviko.com/cdn/shop/files/Spanish_Tomato_Cashews_Benefits.webp?v=1721979629&width=1946",
+      "https://sattviko.com/cdn/shop/files/Cashews_s1.webp?v=1723204761&width=1946"
     ],
     "stars": 5.0,
     "reviewCount": 2,
