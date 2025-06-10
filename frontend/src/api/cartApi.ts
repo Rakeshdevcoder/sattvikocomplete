@@ -37,6 +37,7 @@ export class CartApiClient {
   private baseUrl: string;
   private cartId: string = "";
   private isAuthenticated: boolean = false;
+  private authToken: string | null = null;
 
   constructor() {
     this.baseUrl = "http://localhost:8083";
@@ -45,28 +46,26 @@ export class CartApiClient {
 
   // Set auth token for authenticated requests
   setAuthToken(token: string | null) {
+    this.authToken = token;
     this.isAuthenticated = !!token;
-  }
 
+    // Clear cartId when authentication changes to force fetching correct cart
+    this.cartId = "";
+    localStorage.removeItem("cartId");
+  }
   // Get headers for requests
   private getHeaders() {
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
     };
 
-    // Add user session header if authenticated
-    if (this.isAuthenticated) {
-      const user = localStorage.getItem("user");
-      if (user) {
-        const userData = JSON.parse(user);
-        headers["X-User-Id"] = userData.id;
-        headers["X-User-Phone"] = userData.phone;
-      }
+    // Add authorization header if authenticated
+    if (this.isAuthenticated && this.authToken) {
+      headers["Authorization"] = `Bearer ${this.authToken}`;
     }
 
     return headers;
   }
-
   // Create a new cart
   async createCart(): Promise<Cart> {
     try {
