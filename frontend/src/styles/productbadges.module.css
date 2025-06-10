@@ -1,3 +1,9 @@
+:root {
+  font-family: "CustomFont1", sans-serif;
+  padding: 0;
+  margin: 0;
+  box-sizing: border-box;
+}
 .container {
   width: 100%;
   padding: 1.5rem;

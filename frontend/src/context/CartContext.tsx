@@ -75,7 +75,7 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
 
           // If there was a guest cart, try to merge it
           const guestCartId = localStorage.getItem("cartId");
-          if (guestCartId && guestCartId !== cart?.id) {
+          if (guestCartId) {
             try {
               await cartApi.mergeGuestCart(guestCartId);
               // Refresh cart after merge
@@ -101,7 +101,7 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
     if (!authLoading) {
       updateAuthToken();
     }
-  }, [user, authLoading, cart?.id]);
+  }, [user, authLoading]); // Removed cart?.id from dependencies
 
   // Initialize cart on component mount
   useEffect(() => {

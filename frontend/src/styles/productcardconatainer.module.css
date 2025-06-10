@@ -1,18 +1,23 @@
 /* src/styles/productGrid.module.css */
-
+:root {
+  font-family: "CustomFont1", sans-serif;
+  padding: 0;
+  margin: 0;
+  box-sizing: border-box;
+}
 .productGrid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-    gap: 30px;
-    margin: 0 auto;
-    max-width: 1200px;
-    padding: 20px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 30px;
+  margin: 0 auto;
+  max-width: 1200px;
+  padding: 20px;
+}
+
+@media (max-width: 767px) {
+  .productGrid {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 15px;
+    padding: 10px;
   }
-  
-  @media (max-width: 767px) {
-    .productGrid {
-      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-      gap: 15px;
-      padding: 10px;
-    }
-  }
+}

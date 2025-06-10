@@ -45,13 +45,19 @@ export class CartApiClient {
   }
 
   // Set auth token for authenticated requests
+  // Set auth token for authenticated requests
   setAuthToken(token: string | null) {
+    const wasAuthenticated = this.isAuthenticated;
     this.authToken = token;
     this.isAuthenticated = !!token;
 
-    // Clear cartId when authentication changes to force fetching correct cart
-    this.cartId = "";
-    localStorage.removeItem("cartId");
+    // Only clear cartId when transitioning from authenticated to unauthenticated (logout)
+    // Don't clear when transitioning from unauthenticated to authenticated (login)
+    if (wasAuthenticated && !this.isAuthenticated) {
+      // User logged out - clear the cart
+      this.cartId = "";
+      localStorage.removeItem("cartId");
+    }
   }
   // Get headers for requests
   private getHeaders() {
