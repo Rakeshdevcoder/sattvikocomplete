@@ -10,13 +10,14 @@ import React, {
 import { useAuth } from "./AuthContext"; // Use centralized auth
 import { type Cart, cartApi } from "../api/cartApi";
 
-// Simple context type with essential cart functionality
+// Add userCartInitialized to the context type
 interface CartContextType {
   cart: Cart | null;
   loading: boolean;
   error: string | null;
   cartCount: number;
   isCartOpen: boolean;
+  userCartInitialized: boolean; // New property
   toggleCart: () => void;
   addToCart: (product: any) => Promise<void>;
   updateCartItem: (itemId: string, quantity: number) => Promise<void>;
@@ -46,6 +47,7 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [userCartInitialized, setUserCartInitialized] = useState(false); // New state
 
   // Use centralized auth context
   const { user, loading: authLoading } = useAuth();
@@ -62,6 +64,8 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
   // Update auth token when authentication state changes
   useEffect(() => {
     const updateAuthToken = async () => {
+      setUserCartInitialized(false); // Reset when user changes
+
       if (user) {
         try {
           // For Appwrite, we don't need to set a separate JWT token
@@ -84,9 +88,12 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
           }
         } catch (err) {
           console.error("Failed to handle user authentication:", err);
+        } finally {
+          setUserCartInitialized(true); // Mark as initialized even on error
         }
       } else {
         cartApi.setAuthToken(null);
+        setUserCartInitialized(true); // Mark as initialized for unauthenticated state
       }
     };
 
@@ -267,6 +274,7 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
         error,
         cartCount,
         isCartOpen,
+        userCartInitialized, // Expose the new state
         toggleCart,
         addToCart,
         updateCartItem,

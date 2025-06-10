@@ -1,9 +1,15 @@
 /* productlist.module.css */
+:root {
+  font-family: "CustomFont1", sans-serif;
+  padding: 0;
+  margin: 0;
+  box-sizing: border-box;
+}
 .productGrid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 2rem;
-  margin: 2rem 0;
+  margin: 0;
   width: 100%;
   max-width: 1400px;
   margin: 2rem auto;

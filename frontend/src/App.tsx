@@ -30,7 +30,7 @@ const App = () => {
     <AuthProvider>
       <CartProvider>
         <Router>
-          <AnnouncementBar message="Enjoy Free Shipping on Orders Over ₹299" />
+          <AnnouncementBar message="Flat 25% OFF on Orders above 999" />
           <div style={{ marginLeft: "200.4px", marginRight: "200.4px" }}>
             <HeaderComponent />
           </div>

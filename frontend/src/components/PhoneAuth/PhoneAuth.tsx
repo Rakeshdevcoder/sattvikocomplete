@@ -1,6 +1,7 @@
 // src/components/PhoneAuth/PhoneAuth.tsx
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../../context/AuthContext";
+import { useCart } from "../../context/CartContext"; // Import useCart
 import { FiX, FiClock } from "react-icons/fi";
 import styles from "../../styles/phoneauth.module.css";
 
@@ -10,6 +11,7 @@ interface PhoneAuthProps {
 
 const PhoneAuth: React.FC<PhoneAuthProps> = ({ onClose }) => {
   const { login, verifyOTP, loading, error, clearError } = useAuth();
+  const { userCartInitialized } = useCart(); // Get userCartInitialized
 
   const [step, setStep] = useState<"phone" | "otp" | "success">("phone");
   const [phone, setPhone] = useState("");
@@ -30,15 +32,16 @@ const PhoneAuth: React.FC<PhoneAuthProps> = ({ onClose }) => {
     clearError();
   }, [step, clearError]);
 
-  // Auto close after success
+  // Auto close after success - now depends on userCartInitialized
   useEffect(() => {
-    if (step === "success") {
+    if (step === "success" && userCartInitialized) {
+      console.log("Cart initialized, closing auth modal");
       const timer = setTimeout(() => {
         onClose();
       }, 2000);
       return () => clearTimeout(timer);
     }
-  }, [step, onClose]);
+  }, [step, onClose, userCartInitialized]);
 
   const handlePhoneSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -133,10 +136,25 @@ const PhoneAuth: React.FC<PhoneAuthProps> = ({ onClose }) => {
     e: React.KeyboardEvent<HTMLInputElement>,
     index: number
   ) => {
-    if (e.key === "Backspace" && !otp[index] && index > 0) {
-      const prevInput = document.getElementById(`otp-${index - 1}`);
-      if (prevInput) {
-        (prevInput as HTMLInputElement).focus();
+    if (e.key === "Backspace") {
+      // If current input has value, clear it
+      if (otp[index]) {
+        const newOtp = otp.split("");
+        newOtp[index] = "";
+        setOtp(newOtp.join(""));
+      }
+      // If current input is empty and not the first input, move to previous input
+      else if (index > 0) {
+        const prevInput = document.getElementById(`otp-${index - 1}`);
+        if (prevInput) {
+          // Move focus to previous input
+          (prevInput as HTMLInputElement).focus();
+
+          // Also clear the previous input value
+          const newOtp = otp.split("");
+          newOtp[index - 1] = "";
+          setOtp(newOtp.join(""));
+        }
       }
     }
   };
@@ -295,7 +313,11 @@ const PhoneAuth: React.FC<PhoneAuthProps> = ({ onClose }) => {
               <h3 className={styles.successSubtitle}>Login successful</h3>
               <div className={styles.loadingContainer}>
                 <div className={styles.spinner}></div>
-                <p className={styles.signingText}>Signing you in</p>
+                <p className={styles.signingText}>
+                  {userCartInitialized
+                    ? "Almost done..."
+                    : "Signing you in and setting up your cart..."}
+                </p>
               </div>
             </div>
           )}
