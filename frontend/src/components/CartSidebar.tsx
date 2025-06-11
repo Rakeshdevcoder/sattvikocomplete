@@ -3,7 +3,7 @@ import React, { useState } from "react";
 import { useCart } from "../context/CartContext";
 import { useAuth } from "../context/AuthContext"; // Use centralized auth
 import styles from "../styles/headercomponent.module.css";
-import proceedToShiprocketCheckout from "../context/CartContext"; // Utility function for checkout
+
 import {
   FiX,
   FiShoppingCart,
@@ -317,9 +317,7 @@ const CartSidebar: React.FC = () => {
             {!authLoading && isSignedIn ? (
               <button
                 className={styles.checkoutButton}
-                onClick={() => {
-                  proceedToShiprocketCheckout();
-                }}
+                onClick={proceedToShiprocketCheckout}
               >
                 Proceed to Checkout
               </button>

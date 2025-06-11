@@ -260,21 +260,45 @@ class ShiprocketApiClient {
     }
   }
 
+  // Add this to shiprocketApi.ts to improve error handling:
+
   async launchShiprocketCheckout(orderData: CreateOrderRequest) {
     try {
-      // First create the order
+      console.log(
+        "Launching Shiprocket checkout with order data:",
+        JSON.stringify(orderData)
+      );
+
+      // First authenticate explicitly to ensure we have a valid token
+      await this.authenticate();
+      console.log("Successfully authenticated with Shiprocket");
+
+      // Create the order
       const orderResult = await this.createOrder(orderData);
+      console.log("Shiprocket order created successfully:", orderResult);
 
       // Then launch the Shiprocket checkout window
       const checkoutUrl = `https://shiprocket.co/checkout/${orderResult.shiprocketOrderId}`;
+      console.log("Opening Shiprocket checkout URL:", checkoutUrl);
 
       // Open in a new window
-      window.open(checkoutUrl, "_blank");
+      const newWindow = window.open(checkoutUrl, "_blank");
+
+      // Check if window was successfully opened
+      if (!newWindow) {
+        throw new Error(
+          "Failed to open checkout window. Please check if pop-up blockers are disabled."
+        );
+      }
 
       return orderResult;
-    } catch (error) {
-      console.error("Failed to launch Shiprocket checkout:", error);
-      throw error;
+    } catch (error: any) {
+      console.error("Detailed error launching Shiprocket checkout:", error);
+
+      // Extract more specific error message if available
+      const errorMessage =
+        error.response?.data?.message || error.message || "Unknown error";
+      throw new Error(`Shiprocket checkout failed: ${errorMessage}`);
     }
   }
 
