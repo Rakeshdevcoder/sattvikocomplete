@@ -24,6 +24,7 @@ import ProductDetail from "./pages/ProductDetail";
 import BundlePage from "./pages/BundlePage";
 import Home from "./pages/Home";
 import Account from "./pages/Account";
+import Cart from "./pages/Cart"; // Import the Cart component
 
 const App = () => {
   return (
@@ -63,7 +64,7 @@ const App = () => {
               <Route path="/collections/high-fibre" element={<HighFibre />} />
               <Route path="/collections/all" element={<AllProduct />} />
               <Route path="/collections/bundle" element={<BundlePage />} />
-
+              <Route path="/cart" element={<Cart />} /> {/* Add Cart route */}
               {/* Protected routes that require authentication */}
               <Route
                 path="/account"
@@ -73,7 +74,6 @@ const App = () => {
                   </ProtectedRoute>
                 }
               />
-
               <Route
                 path="/checkout"
                 element={

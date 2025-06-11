@@ -1,18 +1,10 @@
 // src/components/CartSidebar.tsx
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useCart } from "../context/CartContext";
-import { useAuth } from "../context/AuthContext"; // Use centralized auth
-import styles from "../styles/headercomponent.module.css";
-
-import {
-  FiX,
-  FiShoppingCart,
-  FiMinus,
-  FiPlus,
-  FiTrash2,
-  FiTag,
-} from "react-icons/fi";
+import { useAuth } from "../context/AuthContext";
 import { Link } from "react-router-dom";
+import { FiCheck, FiX } from "react-icons/fi";
+import styles from "../styles/CartSidebar.module.css";
 
 const CartSidebar: React.FC = () => {
   const {
@@ -21,79 +13,47 @@ const CartSidebar: React.FC = () => {
     error,
     isCartOpen,
     toggleCart,
-    updateCartItem,
-    removeCartItem,
-    applyCoupon,
-    removeCoupon,
     proceedToShiprocketCheckout,
   } = useCart();
 
-  // Use centralized auth context
-  const { user, loading: authLoading } = useAuth();
-  const isSignedIn = !!user;
+  const { user } = useAuth();
+  const [currentItem, setCurrentItem] = useState<any>(null);
+  const [showAddressModal, setShowAddressModal] = useState(false);
 
-  // State for quantity updates
-  const [updatingItemId, setUpdatingItemId] = useState<string | null>(null);
-  // State for coupon code
-  const [couponCode, setCouponCode] = useState<string>("");
-  const [applyingCoupon, setApplyingCoupon] = useState<boolean>(false);
+  // When cart updates, set the current item to the most recently added item
+  useEffect(() => {
+    if (cart && cart.items.length > 0 && isCartOpen) {
+      const lastItem = cart.items[cart.items.length - 1];
+      setCurrentItem(lastItem);
+    } else {
+      setCurrentItem(null);
+    }
+  }, [cart, isCartOpen]);
 
-  // Handle quantity changes
-  const handleQuantityChange = async (itemId: string, newQuantity: number) => {
-    if (newQuantity < 1) return;
+  // Handle Buy Now button click
+  const handleBuyNow = async () => {
+    // Check if the user is authenticated
+    if (!user) {
+      // Dispatch custom event to open auth modal
+      window.dispatchEvent(new CustomEvent("openAuthModal"));
+      return;
+    }
 
-    setUpdatingItemId(itemId);
-    await updateCartItem(itemId, newQuantity);
-    setUpdatingItemId(null);
-  };
-
-  // Handle item removal
-  const handleRemoveItem = async (itemId: string) => {
-    setUpdatingItemId(itemId);
-    await removeCartItem(itemId);
-    setUpdatingItemId(null);
-  };
-
-  // Handle coupon application
-  const handleApplyCoupon = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!couponCode.trim()) return;
-
-    setApplyingCoupon(true);
-    try {
-      await applyCoupon(couponCode);
-      setCouponCode("");
-    } catch (err) {
-      console.error("Failed to apply coupon:", err);
-    } finally {
-      setApplyingCoupon(false);
+    // Get the saved address or open address modal
+    const savedAddress = localStorage.getItem("shippingAddress");
+    if (savedAddress) {
+      await proceedToShiprocketCheckout();
+    } else {
+      setShowAddressModal(true);
     }
   };
 
-  // Handle coupon removal
-  const handleRemoveCoupon = async () => {
-    try {
-      await removeCoupon();
-    } catch (err) {
-      console.error("Failed to remove coupon:", err);
-    }
-  };
+  // Only show if cart is open and we have a current item
+  if (!isCartOpen || !currentItem || loading) {
+    return null;
+  }
 
-  // Handle opening auth modal
-  const handleOpenAuthModal = () => {
-    toggleCart(); // Close the cart
-    // Dispatch custom event to open auth modal in HeaderComponent
-    window.dispatchEvent(new CustomEvent("openAuthModal"));
-  };
-
-  // Helper function to safely convert price to number
-  const toNumber = (value: string | number | undefined): number => {
-    if (typeof value === "number") return value;
-    if (typeof value === "string") return parseFloat(value) || 0;
-    return 0;
-  };
-
-  // Helper function to get image URL
+  // Get image URL from current item
   const getImageUrl = (image: any): string => {
     if (!image) return "https://via.placeholder.com/80x80?text=Product";
     if (typeof image === "string") return image;
@@ -103,244 +63,154 @@ const CartSidebar: React.FC = () => {
     return "https://via.placeholder.com/80x80?text=Product";
   };
 
+  const cartCount = cart?.items.length || 0;
+
   return (
-    <>
-      {/* Cart overlay */}
-      <div
-        className={`${styles.cartOverlay} ${
-          isCartOpen ? styles.cartOverlayVisible : ""
-        }`}
-        onClick={toggleCart}
-      />
+    <div className={styles.cartSidebar}>
+      {/* Close button */}
+      <button onClick={toggleCart} className={styles.closeButton}>
+        <FiX />
+      </button>
 
-      {/* Cart sidebar */}
-      <div
-        className={`${styles.cartSidebar} ${
-          isCartOpen ? styles.cartSidebarOpen : ""
-        }`}
-      >
-        {/* Cart header */}
-        <div className={styles.cartHeader}>
-          <h2 className={styles.cartTitle}>Your Cart</h2>
-          <button
-            className={styles.closeCartButton}
-            onClick={toggleCart}
-            aria-label="Close cart"
-          >
-            <FiX size={20} />
-          </button>
-        </div>
-
-        {/* Cart content */}
-        <div className={styles.cartContent}>
-          {loading ? (
-            <div className={styles.emptyCart}>
-              <p>Loading your cart...</p>
-            </div>
-          ) : error ? (
-            <div className={styles.emptyCart}>
-              <p>Error: {error}</p>
-              <button
-                className={styles.continueShoppingButton}
-                onClick={toggleCart}
-              >
-                Continue Shopping
-              </button>
-            </div>
-          ) : !cart || cart.items.length === 0 ? (
-            <div className={styles.emptyCart}>
-              <div className={styles.emptyCartIcon}>
-                <FiShoppingCart size={48} />
-              </div>
-              <p>Your cart is empty</p>
-              <button
-                className={styles.continueShoppingButton}
-                onClick={toggleCart}
-              >
-                Start Shopping
-              </button>
-            </div>
-          ) : (
-            <>
-              {/* Regular cart items */}
-              {cart.items.map((item) => (
-                <div key={item.id} className={styles.cartItem}>
-                  {/* Item image */}
-                  <div className={styles.cartItemImage}>
-                    <img
-                      src={getImageUrl(item.image)}
-                      alt={item.title}
-                      onError={(e) => {
-                        e.currentTarget.src =
-                          "https://via.placeholder.com/80x80?text=Product";
-                      }}
-                    />
-                  </div>
-
-                  {/* Item details */}
-                  <div className={styles.cartItemDetails}>
-                    <h4 className={styles.cartItemTitle}>
-                      {item.title}
-                      {item.weight && (
-                        <span className={styles.cartItemWeight}>
-                          {" "}
-                          {item.weight}
-                        </span>
-                      )}
-                    </h4>
-
-                    <p className={styles.cartItemPrice}>
-                      ₹{toNumber(item.price).toFixed(2)}
-                    </p>
-
-                    {/* Quantity controls */}
-                    <div className={styles.cartItemControls}>
-                      <div className={styles.quantityControl}>
-                        <button
-                          className={styles.quantityButton}
-                          onClick={() =>
-                            handleQuantityChange(item.id, item.quantity - 1)
-                          }
-                          disabled={
-                            updatingItemId === item.id || item.quantity <= 1
-                          }
-                          aria-label="Decrease quantity"
-                        >
-                          <FiMinus size={14} />
-                        </button>
-                        <input
-                          type="text"
-                          className={styles.quantityInput}
-                          value={item.quantity}
-                          readOnly
-                        />
-                        <button
-                          className={styles.quantityButton}
-                          onClick={() =>
-                            handleQuantityChange(item.id, item.quantity + 1)
-                          }
-                          disabled={updatingItemId === item.id}
-                          aria-label="Increase quantity"
-                        >
-                          <FiPlus size={14} />
-                        </button>
-                      </div>
-
-                      {/* Remove button */}
-                      <button
-                        className={styles.removeButton}
-                        onClick={() => handleRemoveItem(item.id)}
-                        disabled={updatingItemId === item.id}
-                      >
-                        <FiTrash2 size={14} className={styles.icon} />
-                        Remove
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-
-              {/* Coupon section */}
-              <div className={styles.couponSection}>
-                {cart.coupon ? (
-                  <div className={styles.appliedCoupon}>
-                    <div className={styles.couponInfo}>
-                      <FiTag size={16} className={styles.couponIcon} />
-                      <span>
-                        Applied: <strong>{cart.coupon.code}</strong>
-                        {cart.coupon.discountType === "percentage"
-                          ? ` (${cart.coupon.discountValue}% off)`
-                          : ` (₹${cart.coupon.discountValue.toFixed(2)} off)`}
-                      </span>
-                    </div>
-                    <button
-                      className={styles.removeCouponButton}
-                      onClick={handleRemoveCoupon}
-                    >
-                      <FiX size={16} />
-                    </button>
-                  </div>
-                ) : (
-                  <form
-                    onSubmit={handleApplyCoupon}
-                    className={styles.couponForm}
-                  >
-                    <input
-                      type="text"
-                      placeholder="Enter coupon code"
-                      value={couponCode}
-                      onChange={(e) => setCouponCode(e.target.value)}
-                      className={styles.couponInput}
-                      disabled={applyingCoupon}
-                    />
-                    <button
-                      type="submit"
-                      className={styles.applyCouponButton}
-                      disabled={!couponCode.trim() || applyingCoupon}
-                    >
-                      Apply
-                    </button>
-                  </form>
-                )}
-              </div>
-            </>
-          )}
-        </div>
-
-        {/* Cart footer */}
-        {cart && cart.items.length > 0 && (
-          <div className={styles.cartFooter}>
-            {/* Price details */}
-            <div className={styles.priceDetails}>
-              <div className={styles.priceRow}>
-                <span>Subtotal</span>
-                <span>₹{toNumber(cart.subtotal).toFixed(2)}</span>
-              </div>
-              {cart.taxAmount > 0 && (
-                <div className={styles.priceRow}>
-                  <span>Tax</span>
-                  <span>₹{toNumber(cart.taxAmount).toFixed(2)}</span>
-                </div>
-              )}
-              {cart.shippingCost > 0 && (
-                <div className={styles.priceRow}>
-                  <span>Shipping</span>
-                  <span>₹{toNumber(cart.shippingCost).toFixed(2)}</span>
-                </div>
-              )}
-              <div className={styles.totalRow}>
-                <span>Total</span>
-                <span>₹{toNumber(cart.totalAmount).toFixed(2)}</span>
-              </div>
-            </div>
-            {/* Checkout button - only show login prompt if not signed in */}
-            {!authLoading && isSignedIn ? (
-              <button
-                className={styles.checkoutButton}
-                onClick={proceedToShiprocketCheckout}
-              >
-                Proceed to Checkout
-              </button>
-            ) : (
-              <button
-                className={styles.checkoutButton}
-                onClick={handleOpenAuthModal}
-              >
-                Sign in to Checkout
-              </button>
-            )}
-
-            {/* Continue shopping button */}
-            <button
-              className={styles.continueShoppingButton}
-              onClick={toggleCart}
-            >
-              Continue Shopping
-            </button>
-          </div>
-        )}
+      {/* Success message */}
+      <div className={styles.successMessage}>
+        <FiCheck className={styles.checkIcon} />
+        <span className={styles.successText}>Item added to your cart</span>
       </div>
-    </>
+
+      {/* Product info */}
+      <div className={styles.productContainer}>
+        <div className={styles.productImage}>
+          <img src={getImageUrl(currentItem.image)} alt={currentItem.title} />
+        </div>
+        <div>
+          <h3 className={styles.productTitle}>{currentItem.title}</h3>
+        </div>
+      </div>
+
+      {/* View cart button */}
+      <Link to="/cart" className={styles.viewCartButton}>
+        View cart ({cartCount})
+      </Link>
+
+      {/* Buy now button */}
+      <button onClick={handleBuyNow} className={styles.buyNowButton}>
+        BUY NOW
+        <div className={styles.paymentIcons}>
+          <img
+            src="https://fastrr-boost-ui.pickrr.com/assets/images/boost_button/upi_options.svg"
+            alt="upioptions"
+            style={{ width: "50px", height: "25px" }}
+          />
+        </div>
+        <span className={styles.poweredBy}>
+          <img
+            src="https://fastrr-boost-ui.pickrr.com/assets/images/boost_button/powered_by.svg"
+            alt="Shiprocket"
+          />
+        </span>
+      </button>
+
+      {/* Continue shopping link */}
+      <button onClick={toggleCart} className={styles.continueShoppingButton}>
+        Continue shopping
+      </button>
+
+      {/* Address modal */}
+      {showAddressModal && (
+        <div className={styles.addressModalOverlay}>
+          <div className={styles.addressModalContent}>
+            <div className={styles.addressModalHeader}>
+              <h2 className={styles.addressModalTitle}>Shipping Address</h2>
+              <button
+                onClick={() => setShowAddressModal(false)}
+                className={styles.closeButton}
+              >
+                <FiX />
+              </button>
+            </div>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                // Get form data and process
+                const formData = new FormData(e.currentTarget);
+                const address = {
+                  fullName: formData.get("fullName") as string,
+                  address: formData.get("address") as string,
+                  city: formData.get("city") as string,
+                  state: formData.get("state") as string,
+                  pincode: formData.get("pincode") as string,
+                  email: formData.get("email") as string,
+                  phone: formData.get("phone") as string,
+                };
+
+                // Save and proceed
+                localStorage.setItem(
+                  "shippingAddress",
+                  JSON.stringify(address)
+                );
+                setShowAddressModal(false);
+                proceedToShiprocketCheckout();
+              }}
+            >
+              <div className={styles.formGroup}>
+                <label className={styles.formLabel}>Full Name *</label>
+                <input name="fullName" required className={styles.formInput} />
+              </div>
+
+              <div className={styles.formGroup}>
+                <label className={styles.formLabel}>Address *</label>
+                <input name="address" required className={styles.formInput} />
+              </div>
+
+              <div className={styles.formRow}>
+                <div className={styles.formColumn}>
+                  <label className={styles.formLabel}>City *</label>
+                  <input name="city" required className={styles.formInput} />
+                </div>
+
+                <div className={styles.formColumn}>
+                  <label className={styles.formLabel}>State *</label>
+                  <input name="state" required className={styles.formInput} />
+                </div>
+              </div>
+
+              <div className={styles.formRow}>
+                <div className={styles.formColumn}>
+                  <label className={styles.formLabel}>Pincode *</label>
+                  <input name="pincode" required className={styles.formInput} />
+                </div>
+
+                <div className={styles.formColumn}>
+                  <label className={styles.formLabel}>Email *</label>
+                  <input
+                    name="email"
+                    type="email"
+                    required
+                    className={styles.formInput}
+                  />
+                </div>
+              </div>
+
+              <div className={styles.formGroup}>
+                <label className={styles.formLabel}>Phone *</label>
+                <input
+                  name="phone"
+                  required
+                  className={styles.formInput}
+                  defaultValue={user?.phone?.substring(3) || ""}
+                />
+              </div>
+
+              <button type="submit" className={styles.submitButton}>
+                Proceed to Payment
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
   );
 };
 
