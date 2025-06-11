@@ -145,16 +145,42 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
     setError(null);
 
     try {
-      if (!cart) {
-        throw new Error("Cart is empty");
+      if (!cart || !cart.items || cart.items.length === 0) {
+        throw new Error("Cart is empty or invalid");
       }
 
       if (!user || !user.phone) {
-        throw new Error("User information is missing");
+        throw new Error(
+          "User information is missing. Please log in and try again."
+        );
+      }
+
+      // Validate address
+      if (
+        !address.fullName ||
+        !address.address ||
+        !address.city ||
+        !address.state ||
+        !address.pincode ||
+        !address.email ||
+        !address.phone
+      ) {
+        throw new Error("Please fill in all required address fields");
+      }
+
+      // Validate pincode
+      if (!/^\d{6}$/.test(address.pincode)) {
+        throw new Error("Please enter a valid 6-digit pincode");
+      }
+
+      // Validate phone
+      if (!/^\d{10}$/.test(address.phone.replace(/\D/g, ""))) {
+        throw new Error("Please enter a valid 10-digit phone number");
       }
 
       console.log("Starting checkout process for user:", user.phone);
       console.log("Shipping address:", address);
+      console.log("Cart details:", cart);
 
       // Calculate total weight from cart items
       let totalWeight = 0;
@@ -177,10 +203,12 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
         totalWeight += itemWeight * item.quantity;
 
         return {
-          name: item.title,
-          sku: item.productId || `product_${Date.now()}`,
+          name: item.title || "Product",
+          sku:
+            item.productId ||
+            `product_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
           units: item.quantity,
-          selling_price: item.price,
+          selling_price: Math.round(item.price * 100) / 100, // Round to 2 decimal places
         };
       });
 
@@ -188,44 +216,79 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
       totalWeight = Math.max(totalWeight, 0.5);
       console.log(`Total order weight: ${totalWeight}kg`);
 
+      // Clean phone number (remove any non-digits)
+      const cleanPhone = address.phone.replace(/\D/g, "");
+
       // Format the order data for Shiprocket with complete address
       const orderData = {
-        order_id: `order_${Date.now()}`,
-        order_date: new Date().toISOString(),
+        order_id: `order_${Date.now()}_${Math.random()
+          .toString(36)
+          .substr(2, 9)}`,
+        order_date: new Date().toISOString().split("T")[0], // YYYY-MM-DD format
         pickup_location: "Primary",
-        billing_customer_name: address.fullName,
+        billing_customer_name: address.fullName.trim(),
         billing_last_name: "", // Optional
-        billing_address: address.address,
-        billing_city: address.city,
-        billing_pincode: address.pincode,
-        billing_state: address.state,
+        billing_address: address.address.trim(),
+        billing_city: address.city.trim(),
+        billing_pincode: address.pincode.trim(),
+        billing_state: address.state.trim(),
         billing_country: "India",
-        billing_email: address.email,
-        billing_phone: address.phone,
+        billing_email: address.email.trim().toLowerCase(),
+        billing_phone: cleanPhone,
         shipping_is_billing: true,
         order_items: orderItems,
-        payment_method: "prepaid",
-        sub_total: cart.subtotal,
-        length: 10,
-        breadth: 10,
-        height: 10,
-        weight: totalWeight,
+        payment_method: "Prepaid",
+        sub_total: Math.round(cart.subtotal * 100) / 100, // Round to 2 decimal places
+        length: 15, // Slightly larger default dimensions
+        breadth: 15,
+        height: 15,
+        weight: Math.round(totalWeight * 100) / 100, // Round to 2 decimal places
       };
 
-      console.log("Prepared order data:", orderData);
+      console.log("Prepared order data:", JSON.stringify(orderData, null, 2));
 
-      // Process checkout with simplified method
-      await shiprocketApi.launchShiprocketCheckout(orderData);
-      console.log("Checkout completed successfully");
+      // Process checkout with error handling
+      try {
+        const checkoutResult = await shiprocketApi.launchShiprocketCheckout(
+          orderData
+        );
+        console.log("Checkout completed successfully:", checkoutResult);
 
-      // Close the cart sidebar
-      toggleCart();
+        // Close the cart sidebar
+        toggleCart();
+
+        // Show success message
+        console.log("Redirecting to payment window...");
+      } catch (checkoutError: any) {
+        console.error("Checkout error:", checkoutError);
+
+        // Handle specific errors
+        if (checkoutError.message.includes("Authentication failed")) {
+          throw new Error(
+            "Payment service authentication failed. Please try again or contact support."
+          );
+        } else if (checkoutError.message.includes("Invalid")) {
+          throw new Error(
+            "Invalid order information. Please check your details and try again."
+          );
+        } else if (checkoutError.message.includes("timeout")) {
+          throw new Error(
+            "Request timed out. Please check your internet connection and try again."
+          );
+        } else {
+          throw new Error(
+            `Checkout failed: ${
+              checkoutError.message || "Unknown error occurred"
+            }`
+          );
+        }
+      }
     } catch (err: any) {
       console.error("Failed to proceed to Shiprocket checkout:", err);
-      setError(
-        `Failed to proceed to checkout: ${err.message || "Please try again."}`
-      );
-      throw err; // Re-throw to handle in UI
+      const errorMessage =
+        err.message || "Unknown error occurred. Please try again.";
+      setError(errorMessage);
+      throw new Error(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -235,6 +298,7 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
   const addToCart = async (product: any) => {
     if (!product || !product.id) {
       console.error("Cannot add to cart: invalid product");
+      setError("Invalid product. Please try again.");
       return;
     }
 
@@ -253,7 +317,7 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
 
       // Open the cart for visual feedback
       setIsCartOpen(true);
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to add item to cart:", err);
       setError("Failed to add item to cart. Please try again.");
     } finally {
@@ -263,7 +327,10 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
 
   // Update cart item quantity
   const updateCartItem = async (itemId: string, quantity: number) => {
-    if (quantity < 1) return;
+    if (quantity < 1) {
+      await removeCartItem(itemId);
+      return;
+    }
 
     setLoading(true);
     setError(null);
@@ -274,7 +341,7 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
 
       // Update local state
       setCart(updatedCart);
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to update cart item:", err);
       setError("Failed to update item. Please try again.");
     } finally {
@@ -293,7 +360,7 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
 
       // Update local state
       setCart(updatedCart);
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to remove cart item:", err);
       setError("Failed to remove item. Please try again.");
     } finally {
@@ -312,7 +379,7 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
 
       // Update local state
       setCart(emptyCart);
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to clear cart:", err);
       setError("Failed to clear cart. Please try again.");
     } finally {
@@ -328,7 +395,7 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
     try {
       const updatedCart = await cartApi.applyCoupon(code);
       setCart(updatedCart);
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to apply coupon:", err);
       setError("Failed to apply coupon. Please try again.");
     } finally {
@@ -344,7 +411,7 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
     try {
       const updatedCart = await cartApi.removeCoupon();
       setCart(updatedCart);
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to remove coupon:", err);
       setError("Failed to remove coupon. Please try again.");
     } finally {
@@ -361,7 +428,7 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
       const checkedOutCart = await cartApi.checkoutCart();
       setCart(null);
       return checkedOutCart;
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to checkout cart:", err);
       setError("Failed to complete checkout. Please try again.");
       throw err;
