@@ -24,7 +24,8 @@ import ProductDetail from "./pages/ProductDetail";
 import BundlePage from "./pages/BundlePage";
 import Home from "./pages/Home";
 import Account from "./pages/Account";
-import Cart from "./pages/Cart"; // Import the Cart component
+import Cart from "./pages/Cart";
+import ShiprocketDebug from "./components/ShiprocketDebug";
 
 const App = () => {
   return (
@@ -35,9 +36,8 @@ const App = () => {
           <div style={{ marginLeft: "200.4px", marginRight: "200.4px" }}>
             <HeaderComponent />
           </div>
-
           <CartSidebar />
-
+          {process.env.NODE_ENV === "development" && <ShiprocketDebug />}
           <main>
             <Routes>
               {/* Public routes */}

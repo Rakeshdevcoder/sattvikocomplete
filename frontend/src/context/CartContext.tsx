@@ -11,6 +11,16 @@ import { useAuth } from "./AuthContext"; // Use centralized auth
 import { type Cart, cartApi } from "../api/cartApi";
 import { shiprocketApi } from "../api/shiprocketApi"; // Import Shiprocket API
 
+interface ShippingAddress {
+  fullName: string;
+  address: string;
+  city: string;
+  state: string;
+  pincode: string;
+  email: string;
+  phone: string;
+}
+
 // Add userCartInitialized to the context type
 interface CartContextType {
   cart: Cart | null;
@@ -27,7 +37,7 @@ interface CartContextType {
   applyCoupon: (code: string) => Promise<void>;
   removeCoupon: () => Promise<void>;
   checkoutCart: () => Promise<Cart>;
-  proceedToShiprocketCheckout: () => Promise<void>;
+  proceedToShiprocketCheckout: (address: ShippingAddress) => Promise<void>;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -129,9 +139,8 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
     initializeCart();
   }, [authLoading]);
 
-  // Update in CartContext.tsx proceedToShiprocketCheckout function:
-
-  const proceedToShiprocketCheckout = async () => {
+  // Updated proceedToShiprocketCheckout function with address parameter
+  const proceedToShiprocketCheckout = async (address: ShippingAddress) => {
     setLoading(true);
     setError(null);
 
@@ -145,6 +154,7 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
       }
 
       console.log("Starting checkout process for user:", user.phone);
+      console.log("Shipping address:", address);
 
       // Calculate total weight from cart items
       let totalWeight = 0;
@@ -178,19 +188,20 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
       totalWeight = Math.max(totalWeight, 0.5);
       console.log(`Total order weight: ${totalWeight}kg`);
 
-      // Format the order data for Shiprocket
+      // Format the order data for Shiprocket with complete address
       const orderData = {
         order_id: `order_${Date.now()}`,
         order_date: new Date().toISOString(),
         pickup_location: "Primary",
-        billing_customer_name: user.phone.substring(3) || "Customer", // Remove +91 prefix
-        billing_address: "Address will be provided during checkout",
-        billing_city: "City",
-        billing_pincode: "110001", // Default, will be updated during checkout
-        billing_state: "Delhi", // Default, will be updated during checkout
+        billing_customer_name: address.fullName,
+        billing_last_name: "", // Optional
+        billing_address: address.address,
+        billing_city: address.city,
+        billing_pincode: address.pincode,
+        billing_state: address.state,
         billing_country: "India",
-        billing_email: "customer@example.com",
-        billing_phone: user.phone.substring(3) || "", // Remove +91 prefix
+        billing_email: address.email,
+        billing_phone: address.phone,
         shipping_is_billing: true,
         order_items: orderItems,
         payment_method: "prepaid",
@@ -203,9 +214,9 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
 
       console.log("Prepared order data:", orderData);
 
-      // Launch Shiprocket checkout
+      // Process checkout with simplified method
       await shiprocketApi.launchShiprocketCheckout(orderData);
-      console.log("Shiprocket checkout launched successfully");
+      console.log("Checkout completed successfully");
 
       // Close the cart sidebar
       toggleCart();
@@ -214,6 +225,7 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
       setError(
         `Failed to proceed to checkout: ${err.message || "Please try again."}`
       );
+      throw err; // Re-throw to handle in UI
     } finally {
       setLoading(false);
     }
@@ -375,7 +387,7 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
         applyCoupon,
         removeCoupon,
         checkoutCart,
-        proceedToShiprocketCheckout, // Add this new function
+        proceedToShiprocketCheckout, // Updated function signature
       }}
     >
       {children}

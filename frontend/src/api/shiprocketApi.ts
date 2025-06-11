@@ -6,14 +6,6 @@ interface ShiprocketAuth {
   expiresAt: number;
 }
 
-interface ShippingRate {
-  courier_company_id: number;
-  courier_name: string;
-  rate: number;
-  etd: string;
-  estimated_delivery_days: string;
-}
-
 interface CreateOrderRequest {
   order_id: string;
   order_date: string;
@@ -70,10 +62,16 @@ class ShiprocketApiClient {
         return;
       }
 
+      console.log("Authenticating with Shiprocket...");
+
       const response = await axios.post(`${this.baseUrl}/auth/login`, {
         email: this.credentials.email,
         password: this.credentials.password,
       });
+
+      if (!response.data || !response.data.token) {
+        throw new Error("Invalid response from Shiprocket auth API");
+      }
 
       this.auth = {
         token: response.data.token,
@@ -82,9 +80,15 @@ class ShiprocketApiClient {
 
       // Save auth to localStorage
       localStorage.setItem("shiprocket_auth", JSON.stringify(this.auth));
-    } catch (error) {
+      console.log("Successfully authenticated with Shiprocket");
+    } catch (error: any) {
       console.error("Shiprocket authentication failed:", error);
-      throw new Error("Failed to authenticate with Shiprocket");
+      if (error.response?.data) {
+        console.error("Auth error details:", error.response.data);
+      }
+      throw new Error(
+        `Failed to authenticate with Shiprocket: ${error.message}`
+      );
     }
   }
 
@@ -102,297 +106,310 @@ class ShiprocketApiClient {
     };
   }
 
-  // Check serviceability for a pincode
-  async checkServiceability(
-    pickupPincode: string,
-    deliveryPincode: string,
-    cod: boolean = false,
-    weight: number = 0.5
-  ) {
-    try {
-      const headers = await this.getHeaders();
-
-      const response = await axios.get(
-        `${this.baseUrl}/courier/serviceability`,
-        {
-          headers,
-          params: {
-            pickup_postcode: pickupPincode,
-            delivery_postcode: deliveryPincode,
-            cod: cod ? 1 : 0,
-            weight: weight,
-          },
-        }
-      );
-
-      return response.data;
-    } catch (error) {
-      console.error("Serviceability check failed:", error);
-      throw error;
-    }
-  }
-
-  private calculateOrderWeight(
-    items: Array<{ name: string; sku: string; units: number }>
-  ): number {
-    let totalWeight = 0;
-
-    // Extract weight from product name if it contains weight information
-    for (const item of items) {
-      // Extract weight from product name (assuming format like "Product Name XX GM/KG")
-      const weightMatch = item.name.match(/(\d+)\s*(GM|KG|g|kg)/i);
-
-      if (weightMatch) {
-        const value = parseFloat(weightMatch[1]);
-        const unit = weightMatch[2].toLowerCase();
-
-        // Convert to kg
-        const weightInKg =
-          unit === "kg" || unit === "KG" ? value : value / 1000; // Convert grams to kg
-
-        // Multiply by quantity
-        totalWeight += weightInKg * item.units;
-      } else {
-        // Default weight per item if not specified (100g)
-        totalWeight += 0.1 * item.units;
-      }
-    }
-
-    // Ensure minimum weight of 0.5kg for shipping calculation
-    return Math.max(totalWeight, 0.5);
-  }
-
-  // Get shipping rates
-  // Update the getShippingRates method to use more accurate weight calculation
-  async getShippingRates(
-    pickupPincode: string,
-    deliveryPincode: string,
-    weight: number,
-    cod: boolean = false,
-    declaredValue: number
-  ): Promise<ShippingRate[]> {
-    try {
-      // Safety check for weight - cap at 10kg
-      if (weight > 10) {
-        console.warn(
-          `Weight exceeds 10kg (${weight}kg). Capping at 10kg to prevent overcharging.`
-        );
-        weight = 10;
-      }
-
-      // Ensure minimum weight
-      weight = Math.max(weight, 0.5);
-
-      const serviceability = await this.checkServiceability(
-        pickupPincode,
-        deliveryPincode,
-        cod,
-        weight
-      );
-
-      if (
-        !serviceability.data ||
-        !serviceability.data.available_courier_companies
-      ) {
-        throw new Error("No courier services available for this route");
-      }
-
-      // Filter and format available couriers
-      const shippingRates: ShippingRate[] =
-        serviceability.data.available_courier_companies
-          .map((courier: any) => ({
-            courier_company_id: courier.courier_company_id,
-            courier_name: courier.courier_name,
-            rate: courier.rate,
-            etd: courier.etd,
-            estimated_delivery_days: courier.estimated_delivery_days,
-          }))
-          .sort((a: ShippingRate, b: ShippingRate) => a.rate - b.rate);
-
-      return shippingRates;
-    } catch (error) {
-      console.error("Failed to get shipping rates:", error);
-      throw error;
-    }
-  }
-
-  // Then modify the createOrder method to use this calculated weight
+  // Create order with proper validation
   async createOrder(orderData: CreateOrderRequest) {
     try {
-      const headers = await this.getHeaders();
+      console.log("Creating Shiprocket order...");
 
-      // Calculate actual weight from items if not explicitly set
-      if (!orderData.weight || orderData.weight > 10) {
-        orderData.weight = this.calculateOrderWeight(orderData.order_items);
+      // Validate required fields
+      if (
+        !orderData.billing_customer_name ||
+        !orderData.billing_address ||
+        !orderData.billing_city ||
+        !orderData.billing_pincode ||
+        !orderData.billing_state ||
+        !orderData.billing_email ||
+        !orderData.billing_phone
+      ) {
+        throw new Error("Missing required billing information");
       }
 
-      // Cap weight at 10kg as a safety measure to prevent overcharging
-      orderData.weight = Math.min(orderData.weight, 10);
+      if (!orderData.order_items || orderData.order_items.length === 0) {
+        throw new Error("Order must contain at least one item");
+      }
+
+      const headers = await this.getHeaders();
+
+      // Ensure all required fields are set with proper values
+      const completeOrderData = {
+        ...orderData,
+        // Ensure pickup location is set
+        pickup_location: orderData.pickup_location || "Primary",
+        // Ensure payment method is valid
+        payment_method: orderData.payment_method || "Prepaid",
+        // Set shipping same as billing if not explicitly set
+        shipping_is_billing: orderData.shipping_is_billing !== false,
+        // Ensure dimensions are set
+        length: orderData.length || 10,
+        breadth: orderData.breadth || 10,
+        height: orderData.height || 10,
+        weight: Math.max(orderData.weight || 0.5, 0.5), // Minimum 0.5kg
+      };
+
+      console.log(
+        "Sending order data to Shiprocket:",
+        JSON.stringify(completeOrderData, null, 2)
+      );
 
       const response = await axios.post(
         `${this.baseUrl}/orders/create/adhoc`,
-        orderData,
-        { headers }
+        completeOrderData,
+        { headers, timeout: 30000 }
       );
 
-      if (!response.data || !response.data.order_id) {
-        throw new Error("Failed to create order in Shiprocket");
+      console.log("Shiprocket order response:", response.data);
+
+      if (!response.data) {
+        throw new Error("Empty response from Shiprocket API");
+      }
+
+      // Check for API errors in response
+      if (response.data.status_code && response.data.status_code !== 200) {
+        const errorMessage =
+          response.data.message || response.data.error || "Unknown API error";
+        throw new Error(`Shiprocket API error: ${errorMessage}`);
+      }
+
+      // Handle different response formats
+      let orderId = response.data.order_id;
+      let shipmentId = response.data.shipment_id;
+
+      // Sometimes the response might be nested
+      if (!orderId && response.data.data) {
+        orderId = response.data.data.order_id;
+        shipmentId = response.data.data.shipment_id;
+      }
+
+      if (!orderId) {
+        console.error("No order ID in response:", response.data);
+        throw new Error(
+          "Order creation failed - no order ID received from Shiprocket"
+        );
       }
 
       return {
-        shiprocketOrderId: response.data.order_id,
-        shipmentId: response.data.shipment_id,
-        status: response.data.status,
-        awbCode: response.data.awb_code,
+        shiprocketOrderId: orderId,
+        shipmentId: shipmentId,
+        status: response.data.status || response.data.data?.status,
+        awbCode: response.data.awb_code || response.data.data?.awb_code,
+        channelOrderId:
+          response.data.channel_order_id ||
+          response.data.data?.channel_order_id,
       };
     } catch (error: any) {
       console.error("Failed to create Shiprocket order:", error);
 
-      if (error.response && error.response.data) {
-        const errorMessage =
-          error.response.data.message ||
-          JSON.stringify(error.response.data.errors) ||
-          "Unknown error occurred";
-        throw new Error(`Shiprocket error: ${errorMessage}`);
+      if (error.response?.data) {
+        console.error("Shiprocket API error details:", error.response.data);
+
+        // Extract specific error messages
+        if (error.response.data.errors) {
+          const errorMessages = Object.values(
+            error.response.data.errors
+          ).flat();
+          throw new Error(`Shiprocket API error: ${errorMessages.join(", ")}`);
+        }
+
+        if (error.response.data.message) {
+          throw new Error(
+            `Shiprocket API error: ${error.response.data.message}`
+          );
+        }
       }
 
-      throw error;
+      if (error.message.includes("timeout")) {
+        throw new Error("Request timeout - please try again");
+      }
+
+      throw new Error(`Failed to create order: ${error.message}`);
     }
   }
 
-  // Add this to shiprocketApi.ts to improve error handling:
-
+  // Launch Shiprocket one-click checkout
   async launchShiprocketCheckout(orderData: CreateOrderRequest) {
     try {
-      console.log(
-        "Launching Shiprocket checkout with order data:",
-        JSON.stringify(orderData)
-      );
+      console.log("Launching Shiprocket one-click checkout...");
 
-      // First authenticate explicitly to ensure we have a valid token
-      await this.authenticate();
-      console.log("Successfully authenticated with Shiprocket");
-
-      // Create the order
+      // First create the order
       const orderResult = await this.createOrder(orderData);
-      console.log("Shiprocket order created successfully:", orderResult);
+      console.log("Order created successfully:", orderResult);
 
-      // Then launch the Shiprocket checkout window
+      if (!orderResult.shiprocketOrderId) {
+        throw new Error("Order creation failed - no order ID received");
+      }
+
+      // Use the correct Shiprocket checkout URL format
+      // Option 1: Use the official checkout URL (recommended)
       const checkoutUrl = `https://shiprocket.co/checkout/${orderResult.shiprocketOrderId}`;
+
       console.log("Opening Shiprocket checkout URL:", checkoutUrl);
 
-      // Open in a new window
-      const newWindow = window.open(checkoutUrl, "_blank");
+      // Open in a new window/tab
+      const checkoutWindow = window.open(
+        checkoutUrl,
+        "_blank",
+        "width=1000,height=700,scrollbars=yes,resizable=yes,location=yes,status=yes"
+      );
 
       // Check if window was successfully opened
-      if (!newWindow) {
+      if (!checkoutWindow) {
         throw new Error(
-          "Failed to open checkout window. Please check if pop-up blockers are disabled."
+          "Failed to open checkout window. Please disable pop-up blockers and try again."
         );
       }
 
-      return orderResult;
+      // Optional: Listen for window close event
+      const checkInterval = setInterval(() => {
+        if (checkoutWindow.closed) {
+          clearInterval(checkInterval);
+          console.log("Checkout window closed");
+          // You can add callback here to refresh order status
+        }
+      }, 1000);
+
+      return {
+        ...orderResult,
+        checkoutUrl,
+        checkoutWindow,
+      };
     } catch (error: any) {
-      console.error("Detailed error launching Shiprocket checkout:", error);
-
-      // Extract more specific error message if available
-      const errorMessage =
-        error.response?.data?.message || error.message || "Unknown error";
-      throw new Error(`Shiprocket checkout failed: ${errorMessage}`);
+      console.error("Failed to launch Shiprocket checkout:", error);
+      throw new Error(`Checkout failed: ${error.message}`);
     }
   }
 
-  // Generate AWB (Airway Bill) for shipment
-  async generateAWB(shipmentId: number, courierCompanyId: number) {
+  // Alternative: Direct checkout without pre-creating order
+  async launchDirectCheckout(orderData: CreateOrderRequest) {
     try {
+      console.log("Launching direct Shiprocket checkout...");
+
       const headers = await this.getHeaders();
 
+      // Use Shiprocket's direct checkout API
+      const checkoutData = {
+        ...orderData,
+        redirect_url: window.location.origin + "/order-success",
+        webhook_url: window.location.origin + "/api/shiprocket-webhook",
+        channel_id: "Custom", // Your channel name
+      };
+
+      // Post to direct checkout endpoint
       const response = await axios.post(
-        `${this.baseUrl}/courier/assign/awb`,
-        {
-          shipment_id: shipmentId,
-          courier_id: courierCompanyId,
-        },
-        { headers }
+        `${this.baseUrl}/orders/create/forward-shipment`,
+        checkoutData,
+        { headers, timeout: 30000 }
       );
 
-      return response.data;
-    } catch (error) {
-      console.error("Failed to generate AWB:", error);
-      throw error;
+      if (response.data?.checkout_url) {
+        const checkoutWindow = window.open(
+          response.data.checkout_url,
+          "_blank",
+          "width=1000,height=700,scrollbars=yes,resizable=yes"
+        );
+
+        if (!checkoutWindow) {
+          throw new Error(
+            "Failed to open checkout window. Please disable pop-up blockers."
+          );
+        }
+
+        return {
+          checkoutUrl: response.data.checkout_url,
+          checkoutWindow: checkoutWindow,
+          orderId: response.data.order_id,
+        };
+      } else {
+        // Fallback to regular order creation
+        throw new Error("Direct checkout not available");
+      }
+    } catch (error: any) {
+      console.warn(
+        "Direct checkout failed, trying regular flow:",
+        error.message
+      );
+      // Fallback to regular order creation + checkout
+      return await this.launchShiprocketCheckout(orderData);
     }
   }
 
-  // Schedule pickup
-  async schedulePickup(shipmentId: number, pickupDate: string) {
+  // Simplified checkout that redirects to Shiprocket's hosted form
+  async launchHostedCheckout(orderData: CreateOrderRequest) {
     try {
-      const headers = await this.getHeaders();
+      console.log("Launching Shiprocket hosted checkout...");
 
-      const response = await axios.post(
-        `${this.baseUrl}/courier/generate/pickup`,
-        {
-          shipment_id: [shipmentId],
-          pickup_date: pickupDate,
-        },
-        { headers }
+      // Encode order data as URL parameters for hosted checkout
+      const params = new URLSearchParams({
+        // Customer details
+        billing_customer_name: orderData.billing_customer_name,
+        billing_address: orderData.billing_address,
+        billing_city: orderData.billing_city,
+        billing_pincode: orderData.billing_pincode,
+        billing_state: orderData.billing_state,
+        billing_country: orderData.billing_country,
+        billing_email: orderData.billing_email,
+        billing_phone: orderData.billing_phone,
+        // Order details
+        order_id: orderData.order_id,
+        sub_total: orderData.sub_total.toString(),
+        weight: orderData.weight.toString(),
+        length: orderData.length.toString(),
+        breadth: orderData.breadth.toString(),
+        height: orderData.height.toString(),
+        // Items (simplified - first item only for demo)
+        item_name: orderData.order_items[0]?.name || "Product",
+        item_quantity: orderData.order_items[0]?.units.toString() || "1",
+        item_price: orderData.order_items[0]?.selling_price.toString() || "0",
+      });
+
+      // Use Shiprocket's public checkout form
+      const checkoutUrl = `https://shiprocket.co/external/checkout?${params.toString()}`;
+
+      console.log("Opening hosted checkout:", checkoutUrl);
+
+      // Open checkout in new window
+      const checkoutWindow = window.open(
+        checkoutUrl,
+        "_blank",
+        "width=1000,height=700,scrollbars=yes,resizable=yes"
       );
 
-      return response.data;
-    } catch (error) {
-      console.error("Failed to schedule pickup:", error);
-      throw error;
+      if (!checkoutWindow) {
+        throw new Error(
+          "Failed to open checkout window. Please disable pop-up blockers."
+        );
+      }
+
+      return {
+        checkoutUrl,
+        checkoutWindow,
+        orderId: orderData.order_id,
+      };
+    } catch (error: any) {
+      console.error("Hosted checkout failed:", error);
+      throw new Error(`Hosted checkout failed: ${error.message}`);
     }
   }
 
-  // Track shipment
-  async trackShipment(awbCode: string) {
+  // Debug method to test API connectivity
+  async testConnection() {
     try {
+      console.log("Testing Shiprocket API connection...");
       const headers = await this.getHeaders();
 
-      const response = await axios.get(
-        `${this.baseUrl}/courier/track/awb/${awbCode}`,
-        { headers }
-      );
-
-      return response.data;
-    } catch (error) {
-      console.error("Failed to track shipment:", error);
-      throw error;
-    }
-  }
-
-  // Cancel shipment
-  async cancelShipment(awbCode: string) {
-    try {
-      const headers = await this.getHeaders();
-
-      const response = await axios.post(
-        `${this.baseUrl}/orders/cancel`,
-        { ids: [awbCode] },
-        { headers }
-      );
-
-      return response.data;
-    } catch (error) {
-      console.error("Failed to cancel shipment:", error);
-      throw error;
-    }
-  }
-
-  // Get pickup locations
-  async getPickupLocations() {
-    try {
-      const headers = await this.getHeaders();
-
+      // Test with a simple API call
       const response = await axios.get(
         `${this.baseUrl}/settings/company/pickup`,
-        { headers }
+        { headers, timeout: 10000 }
       );
 
-      return response.data.data || [];
-    } catch (error) {
-      console.error("Failed to get pickup locations:", error);
-      throw error;
+      console.log("API connection test successful:", response.data);
+      return true;
+    } catch (error: any) {
+      console.error("API connection test failed:", error);
+      if (error.response?.data) {
+        console.error("Error details:", error.response.data);
+      }
+      return false;
     }
   }
 }

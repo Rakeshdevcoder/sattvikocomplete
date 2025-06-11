@@ -39,12 +39,43 @@ const CartSidebar: React.FC = () => {
       return;
     }
 
-    // Get the saved address or open address modal
-    const savedAddress = localStorage.getItem("shippingAddress");
-    if (savedAddress) {
-      await proceedToShiprocketCheckout();
-    } else {
-      setShowAddressModal(true);
+    // Show address modal to collect shipping details
+    setShowAddressModal(true);
+  };
+
+  // Handle address form submission
+  const handleAddressSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget as HTMLFormElement);
+
+    const address = {
+      fullName: formData.get("fullName") as string,
+      address: formData.get("address") as string,
+      city: formData.get("city") as string,
+      state: formData.get("state") as string,
+      pincode: formData.get("pincode") as string,
+      email: formData.get("email") as string,
+      phone: formData.get("phone") as string,
+    };
+
+    // Validate address
+    if (!address.pincode || address.pincode.length !== 6) {
+      alert("Please enter a valid 6-digit pincode");
+      return;
+    }
+
+    if (!address.phone || address.phone.length < 10) {
+      alert("Please enter a valid phone number");
+      return;
+    }
+
+    try {
+      setShowAddressModal(false);
+      // Call checkout with address data
+      await proceedToShiprocketCheckout(address);
+    } catch (error: any) {
+      console.error("Checkout error:", error);
+      alert("Checkout failed: " + error.message);
     }
   };
 
@@ -130,30 +161,7 @@ const CartSidebar: React.FC = () => {
               </button>
             </div>
 
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                // Get form data and process
-                const formData = new FormData(e.currentTarget);
-                const address = {
-                  fullName: formData.get("fullName") as string,
-                  address: formData.get("address") as string,
-                  city: formData.get("city") as string,
-                  state: formData.get("state") as string,
-                  pincode: formData.get("pincode") as string,
-                  email: formData.get("email") as string,
-                  phone: formData.get("phone") as string,
-                };
-
-                // Save and proceed
-                localStorage.setItem(
-                  "shippingAddress",
-                  JSON.stringify(address)
-                );
-                setShowAddressModal(false);
-                proceedToShiprocketCheckout();
-              }}
-            >
+            <form onSubmit={handleAddressSubmit}>
               <div className={styles.formGroup}>
                 <label className={styles.formLabel}>Full Name *</label>
                 <input name="fullName" required className={styles.formInput} />
@@ -179,7 +187,14 @@ const CartSidebar: React.FC = () => {
               <div className={styles.formRow}>
                 <div className={styles.formColumn}>
                   <label className={styles.formLabel}>Pincode *</label>
-                  <input name="pincode" required className={styles.formInput} />
+                  <input
+                    name="pincode"
+                    required
+                    className={styles.formInput}
+                    pattern="[0-9]{6}"
+                    maxLength={6}
+                    placeholder="6 digit pincode"
+                  />
                 </div>
 
                 <div className={styles.formColumn}>
@@ -200,6 +215,9 @@ const CartSidebar: React.FC = () => {
                   required
                   className={styles.formInput}
                   defaultValue={user?.phone?.substring(3) || ""}
+                  pattern="[0-9]{10}"
+                  maxLength={10}
+                  placeholder="10 digit phone number"
                 />
               </div>
 
