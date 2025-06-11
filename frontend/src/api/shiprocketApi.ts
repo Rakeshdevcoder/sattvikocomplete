@@ -132,7 +132,38 @@ class ShiprocketApiClient {
     }
   }
 
+  private calculateOrderWeight(
+    items: Array<{ name: string; sku: string; units: number }>
+  ): number {
+    let totalWeight = 0;
+
+    // Extract weight from product name if it contains weight information
+    for (const item of items) {
+      // Extract weight from product name (assuming format like "Product Name XX GM/KG")
+      const weightMatch = item.name.match(/(\d+)\s*(GM|KG|g|kg)/i);
+
+      if (weightMatch) {
+        const value = parseFloat(weightMatch[1]);
+        const unit = weightMatch[2].toLowerCase();
+
+        // Convert to kg
+        const weightInKg =
+          unit === "kg" || unit === "KG" ? value : value / 1000; // Convert grams to kg
+
+        // Multiply by quantity
+        totalWeight += weightInKg * item.units;
+      } else {
+        // Default weight per item if not specified (100g)
+        totalWeight += 0.1 * item.units;
+      }
+    }
+
+    // Ensure minimum weight of 0.5kg for shipping calculation
+    return Math.max(totalWeight, 0.5);
+  }
+
   // Get shipping rates
+  // Update the getShippingRates method to use more accurate weight calculation
   async getShippingRates(
     pickupPincode: string,
     deliveryPincode: string,
@@ -141,6 +172,17 @@ class ShiprocketApiClient {
     declaredValue: number
   ): Promise<ShippingRate[]> {
     try {
+      // Safety check for weight - cap at 10kg
+      if (weight > 10) {
+        console.warn(
+          `Weight exceeds 10kg (${weight}kg). Capping at 10kg to prevent overcharging.`
+        );
+        weight = 10;
+      }
+
+      // Ensure minimum weight
+      weight = Math.max(weight, 0.5);
+
       const serviceability = await this.checkServiceability(
         pickupPincode,
         deliveryPincode,
@@ -174,10 +216,18 @@ class ShiprocketApiClient {
     }
   }
 
-  // Create order in Shiprocket
+  // Then modify the createOrder method to use this calculated weight
   async createOrder(orderData: CreateOrderRequest) {
     try {
       const headers = await this.getHeaders();
+
+      // Calculate actual weight from items if not explicitly set
+      if (!orderData.weight || orderData.weight > 10) {
+        orderData.weight = this.calculateOrderWeight(orderData.order_items);
+      }
+
+      // Cap weight at 10kg as a safety measure to prevent overcharging
+      orderData.weight = Math.min(orderData.weight, 10);
 
       const response = await axios.post(
         `${this.baseUrl}/orders/create/adhoc`,
@@ -206,6 +256,24 @@ class ShiprocketApiClient {
         throw new Error(`Shiprocket error: ${errorMessage}`);
       }
 
+      throw error;
+    }
+  }
+
+  async launchShiprocketCheckout(orderData: CreateOrderRequest) {
+    try {
+      // First create the order
+      const orderResult = await this.createOrder(orderData);
+
+      // Then launch the Shiprocket checkout window
+      const checkoutUrl = `https://shiprocket.co/checkout/${orderResult.shiprocketOrderId}`;
+
+      // Open in a new window
+      window.open(checkoutUrl, "_blank");
+
+      return orderResult;
+    } catch (error) {
+      console.error("Failed to launch Shiprocket checkout:", error);
       throw error;
     }
   }

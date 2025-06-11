@@ -9,6 +9,7 @@ import React, {
 } from "react";
 import { useAuth } from "./AuthContext"; // Use centralized auth
 import { type Cart, cartApi } from "../api/cartApi";
+import { shiprocketApi } from "../api/shiprocketApi"; // Import Shiprocket API
 
 // Add userCartInitialized to the context type
 interface CartContextType {
@@ -26,6 +27,7 @@ interface CartContextType {
   applyCoupon: (code: string) => Promise<void>;
   removeCoupon: () => Promise<void>;
   checkoutCart: () => Promise<Cart>;
+  proceedToShiprocketCheckout: () => Promise<void>;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -126,6 +128,77 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
 
     initializeCart();
   }, [authLoading]);
+
+  const proceedToShiprocketCheckout = async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      if (!cart) {
+        throw new Error("Cart is empty");
+      }
+
+      // Calculate total weight from cart items
+      let totalWeight = 0;
+      const orderItems = cart.items.map((item) => {
+        // Extract weight from item title if available (e.g., "Product Name 70 GM")
+        const weightMatch = item.title.match(/(\d+)\s*(GM|KG|g|gm|kg)/i);
+        let itemWeight = 0.1; // Default 100g per item
+
+        if (weightMatch) {
+          const value = parseFloat(weightMatch[1]);
+          const unit = weightMatch[2].toLowerCase();
+          itemWeight = unit === "kg" || unit === "KG" ? value : value / 1000; // Convert to kg
+        }
+
+        totalWeight += itemWeight * item.quantity;
+
+        return {
+          name: item.title,
+          sku: item.productId,
+          units: item.quantity,
+          selling_price: item.price,
+        };
+      });
+
+      // Ensure minimum weight
+      totalWeight = Math.max(totalWeight, 0.5);
+
+      // Format the order data for Shiprocket
+      const orderData = {
+        order_id: `order_${Date.now()}`,
+        order_date: new Date().toISOString(),
+        pickup_location: "Primary",
+        billing_customer_name: user?.phone || "Customer",
+        billing_address: "Address will be provided during checkout",
+        billing_city: "City",
+        billing_pincode: "110001", // Default, will be updated during checkout
+        billing_state: "Delhi", // Default, will be updated during checkout
+        billing_country: "India",
+        billing_email: "customer@example.com",
+        billing_phone: user?.phone || "",
+        shipping_is_billing: true,
+        order_items: orderItems,
+        payment_method: "prepaid",
+        sub_total: cart.subtotal,
+        length: 10,
+        breadth: 10,
+        height: 10,
+        weight: totalWeight,
+      };
+
+      // Launch Shiprocket checkout
+      await shiprocketApi.launchShiprocketCheckout(orderData);
+
+      // Close the cart sidebar
+      toggleCart();
+    } catch (err) {
+      console.error("Failed to proceed to Shiprocket checkout:", err);
+      setError("Failed to proceed to checkout. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Add item to cart
   const addToCart = async (product: any) => {
@@ -274,7 +347,7 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
         error,
         cartCount,
         isCartOpen,
-        userCartInitialized, // Expose the new state
+        userCartInitialized,
         toggleCart,
         addToCart,
         updateCartItem,
@@ -283,6 +356,7 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
         applyCoupon,
         removeCoupon,
         checkoutCart,
+        proceedToShiprocketCheckout, // Add this new function
       }}
     >
       {children}

@@ -3,6 +3,7 @@ import React, { useState } from "react";
 import { useCart } from "../context/CartContext";
 import { useAuth } from "../context/AuthContext"; // Use centralized auth
 import styles from "../styles/headercomponent.module.css";
+import proceedToShiprocketCheckout from "../context/CartContext"; // Utility function for checkout
 import {
   FiX,
   FiShoppingCart,
@@ -24,6 +25,7 @@ const CartSidebar: React.FC = () => {
     removeCartItem,
     applyCoupon,
     removeCoupon,
+    proceedToShiprocketCheckout,
   } = useCart();
 
   // Use centralized auth context
@@ -311,16 +313,16 @@ const CartSidebar: React.FC = () => {
                 <span>₹{toNumber(cart.totalAmount).toFixed(2)}</span>
               </div>
             </div>
-
             {/* Checkout button - only show login prompt if not signed in */}
             {!authLoading && isSignedIn ? (
-              <Link
-                to="/checkout"
+              <button
                 className={styles.checkoutButton}
-                onClick={toggleCart}
+                onClick={() => {
+                  proceedToShiprocketCheckout();
+                }}
               >
                 Proceed to Checkout
-              </Link>
+              </button>
             ) : (
               <button
                 className={styles.checkoutButton}
