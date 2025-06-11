@@ -50,8 +50,8 @@ class ShiprocketApiClient {
 
   // Shiprocket credentials - should be in environment variables
   private credentials = {
-    email: import.meta.env.REACT_APP_SHIPROCKET_EMAIL || "",
-    password: import.meta.env.REACT_APP_SHIPROCKET_PASSWORD || "",
+    email: import.meta.env.VITE_SHIPROCKET_EMAIL || "",
+    password: import.meta.env.VITE_SHIPROCKET_PASSWORD || "",
   };
 
   constructor() {
