@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import styles from "../styles/productcard.module.css";
-import { useCart } from "../context/CartContext";
+import { useShopifyCart } from "../context/ShopifyCartContext";
 
 interface ProductProps {
   product: {
@@ -16,13 +16,16 @@ interface ProductProps {
     hasAntioxidants?: boolean;
     hasProbiotics?: boolean;
     weight: string;
+    // Add Shopify variant info for proper cart integration
+    shopifyVariantId?: string;
+    handle?: string;
   };
 }
 
 const ProductCard: React.FC<ProductProps> = ({ product }) => {
   const [isHovered, setIsHovered] = useState(false);
   const [isAddingToCart, setIsAddingToCart] = useState(false);
-  const { addToCart } = useCart();
+  const { addToCart } = useShopifyCart();
 
   // Format the product title to match the desired display
   const formatTitle = () => {
@@ -65,17 +68,27 @@ const ProductCard: React.FC<ProductProps> = ({ product }) => {
     );
   };
 
-  // Handle add to cart
+  // Handle add to cart for Shopify
+  const handleAddToCart = async () => {
+    if (!product.shopifyVariantId) {
+      console.error("No Shopify variant ID found for product:", product.id);
+      alert("Unable to add product to cart. Please try again.");
+      return;
+    }
 
-  const handleAddToCart = () => {
     setIsAddingToCart(true);
-    // This only passes the ID, not the product object
-    addToCart(product); // Changed from addToCart(product.id)
 
-    // Reset button state after a short delay
-    setTimeout(() => {
-      setIsAddingToCart(false);
-    }, 1000);
+    try {
+      await addToCart(product.shopifyVariantId, 1);
+    } catch (error) {
+      console.error("Failed to add to cart:", error);
+      alert("Failed to add product to cart. Please try again.");
+    } finally {
+      // Reset button state after a short delay
+      setTimeout(() => {
+        setIsAddingToCart(false);
+      }, 1000);
+    }
   };
 
   return (
@@ -98,7 +111,11 @@ const ProductCard: React.FC<ProductProps> = ({ product }) => {
           <div className={styles.titleContainer}>
             <h3 className={styles.cardHeading}>
               <a
-                href={`/products/${product.id}`}
+                href={
+                  product.handle
+                    ? `/products/${product.handle}`
+                    : `/products/${product.id}`
+                }
                 className={styles.productLink}
               >
                 {formattedTitle}
@@ -122,9 +139,15 @@ const ProductCard: React.FC<ProductProps> = ({ product }) => {
               isAddingToCart ? styles.addedToCart : ""
             }`}
             onClick={handleAddToCart}
-            disabled={isAddingToCart}
+            disabled={isAddingToCart || !product.shopifyVariantId}
           >
-            <span>{isAddingToCart ? "Added to cart" : "Add to cart"}</span>
+            <span>
+              {isAddingToCart
+                ? "Added to cart"
+                : !product.shopifyVariantId
+                ? "Unavailable"
+                : "Add to cart"}
+            </span>
           </button>
         </div>
       </div>

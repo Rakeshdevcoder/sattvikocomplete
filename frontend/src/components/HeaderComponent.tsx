@@ -1,7 +1,7 @@
 // HeaderComponent.tsx
 import React, { useState, useEffect, createContext } from "react";
 import styles from "../styles/headercomponent.module.css";
-import { useCart } from "../context/CartContext";
+import { useShopifyCart } from "../context/ShopifyCartContext";
 import { useAuth } from "../context/AuthContext";
 import PhoneAuth from "./PhoneAuth/PhoneAuth";
 
@@ -66,8 +66,8 @@ const HeaderComponent: React.FC = () => {
   // Use auth context
   const { user, loading } = useAuth();
 
-  // Get cart context
-  const { cartCount, toggleCart } = useCart();
+  // Get Shopify cart context
+  const { cartCount, toggleCart } = useShopifyCart();
 
   // Listen for auth modal events
   useEffect(() => {
