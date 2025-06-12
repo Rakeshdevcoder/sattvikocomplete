@@ -22,7 +22,6 @@ const CartSidebar: React.FC = () => {
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
 
-  // When cart updates, set the current item to the most recently added item
   useEffect(() => {
     if (cart && cart.items.length > 0 && isCartOpen) {
       const lastItem = cart.items[cart.items.length - 1];
@@ -32,34 +31,27 @@ const CartSidebar: React.FC = () => {
     }
   }, [cart, isCartOpen]);
 
-  // Clear checkout error when modal closes
   useEffect(() => {
     if (!showAddressModal) {
       setCheckoutError(null);
     }
   }, [showAddressModal]);
 
-  // Handle Buy Now button click
   const handleBuyNow = async () => {
-    // Check if the user is authenticated
     if (!user) {
-      // Dispatch custom event to open auth modal
       window.dispatchEvent(new CustomEvent("openAuthModal"));
       return;
     }
 
-    // Check if cart has items
     if (!cart || !cart.items || cart.items.length === 0) {
       setCheckoutError("Your cart is empty. Please add items before checkout.");
       return;
     }
 
-    // Show address modal to collect shipping details
     setShowAddressModal(true);
     setCheckoutError(null);
   };
 
-  // Handle address form submission
   const handleAddressSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setCheckoutLoading(true);
@@ -77,9 +69,8 @@ const CartSidebar: React.FC = () => {
       phone: (formData.get("phone") as string)?.trim() || "",
     };
 
-    // Frontend validation
     try {
-      // Check required fields
+      // Validate required fields
       if (!address.fullName) throw new Error("Full name is required");
       if (!address.address) throw new Error("Address is required");
       if (!address.city) throw new Error("City is required");
@@ -88,30 +79,27 @@ const CartSidebar: React.FC = () => {
       if (!address.email) throw new Error("Email is required");
       if (!address.phone) throw new Error("Phone number is required");
 
-      // Validate pincode
+      // Validate formats
       if (!/^\d{6}$/.test(address.pincode)) {
         throw new Error("Please enter a valid 6-digit pincode");
       }
 
-      // Validate email
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(address.email)) {
         throw new Error("Please enter a valid email address");
       }
 
-      // Validate phone
       const cleanPhone = address.phone.replace(/\D/g, "");
       if (cleanPhone.length !== 10) {
         throw new Error("Please enter a valid 10-digit phone number");
       }
 
-      // Update phone with cleaned version
       address.phone = cleanPhone;
 
-      // Call checkout with address data
+      // Proceed with Shiprocket checkout
       await proceedToShiprocketCheckout(address);
 
-      // If successful, close modal
+      // Close modal on success
       setShowAddressModal(false);
       setCheckoutError(null);
     } catch (error: any) {
@@ -122,12 +110,10 @@ const CartSidebar: React.FC = () => {
     }
   };
 
-  // Only show if cart is open and we have a current item
   if (!isCartOpen || !currentItem || loading) {
     return null;
   }
 
-  // Get image URL from current item
   const getImageUrl = (image: any): string => {
     if (!image) return "https://via.placeholder.com/80x80?text=Product";
     if (typeof image === "string") return image;
@@ -141,18 +127,15 @@ const CartSidebar: React.FC = () => {
 
   return (
     <div className={styles.cartSidebar}>
-      {/* Close button */}
       <button onClick={toggleCart} className={styles.closeButton}>
         <FiX />
       </button>
 
-      {/* Success message */}
       <div className={styles.successMessage}>
         <FiCheck className={styles.checkIcon} />
         <span className={styles.successText}>Item added to your cart</span>
       </div>
 
-      {/* Product info */}
       <div className={styles.productContainer}>
         <div className={styles.productImage}>
           <img src={getImageUrl(currentItem.image)} alt={currentItem.title} />
@@ -162,7 +145,6 @@ const CartSidebar: React.FC = () => {
         </div>
       </div>
 
-      {/* Error message if any */}
       {error && (
         <div
           style={{
@@ -179,12 +161,10 @@ const CartSidebar: React.FC = () => {
         </div>
       )}
 
-      {/* View cart button */}
       <Link to="/cart" className={styles.viewCartButton}>
         View cart ({cartCount})
       </Link>
 
-      {/* Buy now button */}
       <button
         onClick={handleBuyNow}
         className={styles.buyNowButton}
@@ -219,20 +199,23 @@ const CartSidebar: React.FC = () => {
             </div>
             <span className={styles.poweredBy}>
               <img
-                src="https://fastrr-boost-ui.pickrr.com/assets/images/boost_button/powered_by.svg"
-                alt="Shiprocket"
+                src="https://badges.razorpay.com/badge-light.png"
+                alt="Razorpay"
+                style={{
+                  width: "20px",
+                  height: "20px",
+                  background: "transparent",
+                }}
               />
             </span>
           </>
         )}
       </button>
 
-      {/* Continue shopping link */}
       <button onClick={toggleCart} className={styles.continueShoppingButton}>
         Continue shopping
       </button>
 
-      {/* Address modal */}
       {showAddressModal && (
         <div className={styles.addressModalOverlay}>
           <div className={styles.addressModalContent}>
@@ -247,7 +230,6 @@ const CartSidebar: React.FC = () => {
               </button>
             </div>
 
-            {/* Error message in modal */}
             {checkoutError && (
               <div
                 style={{
@@ -323,7 +305,6 @@ const CartSidebar: React.FC = () => {
                     placeholder="6 digit pincode"
                     disabled={checkoutLoading}
                     onInput={(e) => {
-                      // Only allow digits
                       const target = e.target as HTMLInputElement;
                       target.value = target.value.replace(/\D/g, "");
                     }}
@@ -354,7 +335,6 @@ const CartSidebar: React.FC = () => {
                   placeholder="10 digit phone number"
                   disabled={checkoutLoading}
                   onInput={(e) => {
-                    // Only allow digits
                     const target = e.target as HTMLInputElement;
                     target.value = target.value.replace(/\D/g, "");
                   }}
@@ -389,7 +369,6 @@ const CartSidebar: React.FC = () => {
         </div>
       )}
 
-      {/* Add CSS for spin animation */}
       <style>
         {`
           @keyframes spin {

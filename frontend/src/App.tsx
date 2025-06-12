@@ -37,7 +37,7 @@ const App = () => {
             <HeaderComponent />
           </div>
           <CartSidebar />
-          {process.env.NODE_ENV === "development" && <ShiprocketDebug />}
+
           <main>
             <Routes>
               {/* Public routes */}
