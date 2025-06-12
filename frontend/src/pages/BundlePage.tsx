@@ -1,4 +1,4 @@
-// src/pages/BundlePage.tsx
+// frontend/src/pages/BundlePage.tsx
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import styles from "../styles/bundle.module.css";
@@ -23,7 +23,6 @@ const BundlePage: React.FC = () => {
     const fetchProducts = async () => {
       try {
         setLoading(true);
-        // Fetch all products or specific bundle-eligible products
         const response = await axios.get("/api/products?bundle=true");
 
         if (response.data && Array.isArray(response.data)) {
