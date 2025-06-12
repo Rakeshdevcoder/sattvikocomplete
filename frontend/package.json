@@ -12,6 +12,7 @@
   "dependencies": {
     "@clerk/clerk-react": "^5.31.2",
     "@clerk/react-router": "^1.4.2",
+    "@shopify/storefront-api-client": "^1.0.8",
     "@stripe/react-stripe-js": "^3.7.0",
     "@stripe/stripe-js": "^7.3.0",
     "appwrite": "^18.1.1",
@@ -30,6 +31,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.25.0",
+    "@shopify/api-codegen-preset": "^1.1.8",
     "@types/express": "^5.0.1",
     "@types/node": "^22.15.17",
     "@types/react": "^19.1.2",
