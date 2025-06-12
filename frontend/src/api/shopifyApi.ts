@@ -141,11 +141,10 @@ class ShopifyApiClient {
   constructor() {
     this.client = createStorefrontApiClient({
       storeDomain:
-        process.env.REACT_APP_SHOPIFY_STORE_DOMAIN ||
-        "your-store.myshopify.com",
+        import.meta.env.VITE_SHOPIFY_STORE_DOMAIN || "your-store.myshopify.com",
       apiVersion: "2024-04",
       publicAccessToken:
-        process.env.REACT_APP_SHOPIFY_STOREFRONT_ACCESS_TOKEN || "your-token",
+        import.meta.env.VITE_SHOPIFY_STOREFRONT_ACCESS_TOKEN || "your-token",
     });
 
     // Load cart ID from localStorage
