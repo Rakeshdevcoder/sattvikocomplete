@@ -1,7 +1,6 @@
 // src/pages/Checkout.tsx
 import React, { useState, type ChangeEvent } from "react";
 import { useCart } from "../context/CartContext";
-import { shiprocketApi } from "../api/shiprocketApi";
 import {
   FiTrash2,
   FiMinus,
@@ -10,7 +9,6 @@ import {
   FiPackage,
   FiCreditCard,
   FiTruck,
-  FiAlertCircle,
 } from "react-icons/fi";
 import styles from "../styles/checkout.module.css";
 import { Link, useNavigate } from "react-router-dom";
@@ -26,21 +24,12 @@ interface Address {
   email: string;
 }
 
-interface ShippingOption {
-  courier_company_id: number;
-  courier_name: string;
-  rate: number;
-  etd: string;
-  estimated_delivery_days: string;
-}
-
 const Checkout: React.FC = () => {
   const { cart, updateCartItem, removeCartItem, checkoutCart } = useCart();
   const navigate = useNavigate();
 
   const [orderInstructions, setOrderInstructions] = useState("");
   const [showAddressForm, setShowAddressForm] = useState(false);
-  const [showShippingOptions, setShowShippingOptions] = useState(false);
   const [address, setAddress] = useState<Address>({
     fullName: "",
     street: "",
@@ -52,15 +41,7 @@ const Checkout: React.FC = () => {
     email: "",
   });
 
-  const [shippingOptions, setShippingOptions] = useState<ShippingOption[]>([]);
-  const [selectedShipping, setSelectedShipping] =
-    useState<ShippingOption | null>(null);
-  const [isLoadingShipping, setIsLoadingShipping] = useState(false);
-  const [shippingError, setShippingError] = useState("");
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
-
-  // Your pickup location pincode - should be from environment or config
-  const PICKUP_PINCODE = import.meta.env.REACT_APP_PICKUP_PINCODE || "110001";
 
   if (!cart || cart.items.length === 0) {
     return (
@@ -95,53 +76,6 @@ const Checkout: React.FC = () => {
     setAddress((prev) => ({ ...prev, [name]: value }));
   };
 
-  // Calculate total weight of items (in kg)
-  const calculateTotalWeight = () => {
-    // Assuming each item weighs 0.2kg if weight not specified
-    return cart.items.reduce((total, item) => {
-      const itemWeight = item.weight ? parseFloat(item.weight) : 0.2;
-      return total + itemWeight * item.quantity;
-    }, 0);
-  };
-
-  // Check shipping serviceability and get rates
-  const checkShippingRates = async () => {
-    if (!address.postalCode || address.postalCode.length < 6) {
-      setShippingError("Please enter a valid 6-digit postal code");
-      return;
-    }
-
-    setIsLoadingShipping(true);
-    setShippingError("");
-    setShippingOptions([]);
-
-    try {
-      const totalWeight = calculateTotalWeight();
-      const rates = await shiprocketApi.getShippingRates(
-        PICKUP_PINCODE,
-        address.postalCode,
-        totalWeight,
-        false, // COD
-        cart.totalAmount
-      );
-
-      if (rates.length === 0) {
-        setShippingError("No shipping services available for your location");
-      } else {
-        setShippingOptions(rates);
-        setSelectedShipping(rates[0]); // Select cheapest option by default
-        setShowShippingOptions(true);
-      }
-    } catch (error: any) {
-      console.error("Shipping rate check failed:", error);
-      setShippingError(
-        error.message || "Unable to check shipping rates. Please try again."
-      );
-    } finally {
-      setIsLoadingShipping(false);
-    }
-  };
-
   const handleAddressSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -156,79 +90,29 @@ const Checkout: React.FC = () => {
       return;
     }
 
-    // Check shipping rates
-    await checkShippingRates();
+    // Proceed to place order
+    await handlePlaceOrder();
   };
 
   const handlePlaceOrder = async () => {
-    if (!selectedShipping) {
-      alert("Please select a shipping option");
-      return;
-    }
-
     setIsPlacingOrder(true);
 
     try {
       // First checkout the cart in the cart service
       const checkedOutCart = await checkoutCart();
 
-      // Format order items for Shiprocket
-      const shiprocketItems = checkedOutCart.items.map((item) => ({
-        name: item.title,
-        sku: item.productId,
-        units: item.quantity,
-        selling_price: item.price,
-        discount: 0,
-        tax: item.price * 0.18, // 18% GST
-      }));
-
-      // Create order in Shiprocket
-      const shiprocketOrderData = {
-        order_id: checkedOutCart.id,
-        order_date: new Date().toISOString(),
-        pickup_location: "Primary", // You should configure this
-        billing_customer_name: address.fullName,
-        billing_address: address.street,
-        billing_city: address.city,
-        billing_pincode: address.postalCode,
-        billing_state: address.state,
-        billing_country: address.country,
-        billing_email: address.email,
-        billing_phone: address.phone,
-        shipping_is_billing: true,
-        order_items: shiprocketItems,
-        payment_method: "Prepaid",
-        sub_total: checkedOutCart.subtotal,
-        length: 10, // Default package dimensions
-        breadth: 10,
-        height: 10,
-        weight: calculateTotalWeight(),
-      };
-
-      const shiprocketResponse = await shiprocketApi.createOrder(
-        shiprocketOrderData
-      );
-
-      // Create order in your order service with Shiprocket details
+      // Create order in your order service
       const orderPayload = {
         cartId: checkedOutCart.id,
         items: checkedOutCart.items,
         subtotal: checkedOutCart.subtotal,
         taxAmount: checkedOutCart.taxAmount,
-        shippingCost: selectedShipping.rate,
-        totalAmount: checkedOutCart.totalAmount + selectedShipping.rate,
+        shippingCost: checkedOutCart.shippingCost,
+        totalAmount: checkedOutCart.totalAmount,
         instructions: orderInstructions,
         address,
-        shippingDetails: {
-          courier: selectedShipping.courier_name,
-          rate: selectedShipping.rate,
-          estimatedDelivery: selectedShipping.etd,
-          shiprocketOrderId: shiprocketResponse.shiprocketOrderId,
-          shipmentId: shiprocketResponse.shipmentId,
-          awbCode: shiprocketResponse.awbCode,
-        },
         orderDate: new Date().toISOString(),
-        deliveryDate: selectedShipping.etd,
+        status: "pending",
       };
 
       const res = await fetch("http://localhost:8081/orders", {
@@ -248,11 +132,7 @@ const Checkout: React.FC = () => {
       navigate("/order-success", {
         state: {
           orderId: orderData.id,
-          deliveryDate: selectedShipping.etd,
-          trackingDetails: {
-            awbCode: shiprocketResponse.awbCode,
-            courier: selectedShipping.courier_name,
-          },
+          orderData: orderData,
         },
       });
     } catch (err: any) {
@@ -264,23 +144,15 @@ const Checkout: React.FC = () => {
   };
 
   const formattedSubtotal = cart.subtotal.toFixed(2);
-  const formattedShipping = selectedShipping
-    ? selectedShipping.rate.toFixed(2)
-    : cart.shippingCost.toFixed(2);
+  const formattedShipping = cart.shippingCost.toFixed(2);
   const formattedTax = cart.taxAmount.toFixed(2);
-  const formattedTotal = selectedShipping
-    ? (cart.totalAmount + selectedShipping.rate).toFixed(2)
-    : cart.totalAmount.toFixed(2);
+  const formattedTotal = cart.totalAmount.toFixed(2);
 
   return (
     <div className={styles.checkoutContainer}>
       <div className={styles.checkoutHeader}>
         <h1 className={styles.checkoutTitle}>
-          {!showAddressForm
-            ? "Shopping Cart"
-            : showShippingOptions
-            ? "Select Shipping"
-            : "Shipping Details"}
+          {!showAddressForm ? "Shopping Cart" : "Shipping Details"}
         </h1>
         <div className={styles.checkoutSteps}>
           <div className={`${styles.step} ${styles.activeStep}`}>
@@ -381,47 +253,6 @@ const Checkout: React.FC = () => {
               />
             </div>
           )}
-
-          {/* Shipping Options */}
-          {showShippingOptions && shippingOptions.length > 0 && (
-            <div className={styles.shippingOptions}>
-              <h3 className={styles.shippingTitle}>Select Shipping Option</h3>
-              <div className={styles.shippingList}>
-                {shippingOptions.map((option) => (
-                  <label
-                    key={option.courier_company_id}
-                    className={`${styles.shippingOption} ${
-                      selectedShipping?.courier_company_id ===
-                      option.courier_company_id
-                        ? styles.selectedShipping
-                        : ""
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="shipping"
-                      checked={
-                        selectedShipping?.courier_company_id ===
-                        option.courier_company_id
-                      }
-                      onChange={() => setSelectedShipping(option)}
-                    />
-                    <div className={styles.shippingDetails}>
-                      <div>
-                        <strong>{option.courier_name}</strong>
-                        <p>
-                          Estimated Delivery: {option.estimated_delivery_days}
-                        </p>
-                      </div>
-                      <div className={styles.shippingRate}>
-                        Rs. {option.rate.toFixed(2)}
-                      </div>
-                    </div>
-                  </label>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
 
         {/* Summary & Address Form */}
@@ -460,7 +291,7 @@ const Checkout: React.FC = () => {
               <button className={styles.buyNowButton} onClick={handleBuyNow}>
                 PROCEED TO CHECKOUT
               </button>
-            ) : !showShippingOptions ? (
+            ) : (
               <form
                 className={styles.addressForm}
                 onSubmit={handleAddressSubmit}
@@ -578,12 +409,6 @@ const Checkout: React.FC = () => {
                   </div>
                 </div>
 
-                {shippingError && (
-                  <div className={styles.errorMessage}>
-                    <FiAlertCircle /> {shippingError}
-                  </div>
-                )}
-
                 <div className={styles.actionButtons}>
                   <button
                     type="button"
@@ -595,47 +420,8 @@ const Checkout: React.FC = () => {
 
                   <button
                     type="submit"
-                    className={styles.continueButton}
-                    disabled={isLoadingShipping}
-                  >
-                    {isLoadingShipping ? (
-                      <span className={styles.loadingSpinner}>
-                        Checking Delivery Options...
-                      </span>
-                    ) : (
-                      "Continue to Shipping"
-                    )}
-                  </button>
-                </div>
-              </form>
-            ) : (
-              <div className={styles.placeOrderSection}>
-                <div className={styles.selectedAddress}>
-                  <h4>Deliver to:</h4>
-                  <p>{address.fullName}</p>
-                  <p>{address.street}</p>
-                  <p>
-                    {address.city}, {address.state} - {address.postalCode}
-                  </p>
-                  <p>{address.phone}</p>
-                </div>
-
-                <div className={styles.actionButtons}>
-                  <button
-                    type="button"
-                    className={styles.backButton}
-                    onClick={() => {
-                      setShowShippingOptions(false);
-                      setSelectedShipping(null);
-                    }}
-                  >
-                    Change Address
-                  </button>
-
-                  <button
                     className={styles.placeOrderButton}
-                    onClick={handlePlaceOrder}
-                    disabled={isPlacingOrder || !selectedShipping}
+                    disabled={isPlacingOrder}
                   >
                     {isPlacingOrder ? (
                       <span className={styles.loadingSpinner}>
@@ -648,7 +434,7 @@ const Checkout: React.FC = () => {
                     )}
                   </button>
                 </div>
-              </div>
+              </form>
             )}
 
             <div className={styles.secureCheckout}>

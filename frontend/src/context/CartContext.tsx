@@ -9,26 +9,15 @@ import React, {
 } from "react";
 import { useAuth } from "./AuthContext"; // Use centralized auth
 import { type Cart, cartApi } from "../api/cartApi";
-import { shiprocketApi } from "../api/shiprocketApi"; // Import Shiprocket API
 
-interface ShippingAddress {
-  fullName: string;
-  address: string;
-  city: string;
-  state: string;
-  pincode: string;
-  email: string;
-  phone: string;
-}
-
-// Add userCartInitialized to the context type
+// Remove ShippingAddress interface and proceedToShiprocketCheckout from context type
 interface CartContextType {
   cart: Cart | null;
   loading: boolean;
   error: string | null;
   cartCount: number;
   isCartOpen: boolean;
-  userCartInitialized: boolean; // New property
+  userCartInitialized: boolean;
   toggleCart: () => void;
   addToCart: (product: any) => Promise<void>;
   updateCartItem: (itemId: string, quantity: number) => Promise<void>;
@@ -37,7 +26,6 @@ interface CartContextType {
   applyCoupon: (code: string) => Promise<void>;
   removeCoupon: () => Promise<void>;
   checkoutCart: () => Promise<Cart>;
-  proceedToShiprocketCheckout: (address: ShippingAddress) => Promise<void>;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -59,7 +47,7 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isCartOpen, setIsCartOpen] = useState(false);
-  const [userCartInitialized, setUserCartInitialized] = useState(false); // New state
+  const [userCartInitialized, setUserCartInitialized] = useState(false);
 
   // Use centralized auth context
   const { user, loading: authLoading } = useAuth();
@@ -113,7 +101,7 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
     if (!authLoading) {
       updateAuthToken();
     }
-  }, [user, authLoading]); // Removed cart?.id from dependencies
+  }, [user, authLoading]);
 
   // Initialize cart on component mount
   useEffect(() => {
@@ -138,112 +126,6 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
 
     initializeCart();
   }, [authLoading]);
-
-  // Updated proceedToShiprocketCheckout function with address parameter
-  // src/context/CartContext.tsx - Update the proceedToShiprocketCheckout method
-  const proceedToShiprocketCheckout = async (address: ShippingAddress) => {
-    setLoading(true);
-    setError(null);
-
-    try {
-      if (!cart || !cart.items || cart.items.length === 0) {
-        throw new Error("Cart is empty or invalid");
-      }
-
-      if (!user || !user.phone) {
-        throw new Error(
-          "User information is missing. Please log in and try again."
-        );
-      }
-
-      // Validate address
-      if (
-        !address.fullName ||
-        !address.address ||
-        !address.city ||
-        !address.state ||
-        !address.pincode ||
-        !address.email ||
-        !address.phone
-      ) {
-        throw new Error("Please fill in all required address fields");
-      }
-
-      console.log("Starting Shiprocket checkout...");
-
-      // Calculate total weight
-      let totalWeight = 0;
-      const orderItems = cart.items.map((item) => {
-        const weightMatch = item.title.match(/(\d+)\s*(GM|KG|g|gm|kg)/i);
-        let itemWeight = 0.1; // Default 100g per item
-
-        if (weightMatch) {
-          const value = parseFloat(weightMatch[1]);
-          const unit = weightMatch[2].toLowerCase();
-          itemWeight = unit === "kg" || unit === "KG" ? value : value / 1000;
-        }
-
-        totalWeight += itemWeight * item.quantity;
-
-        return {
-          name: item.title || "Product",
-          sku:
-            item.productId ||
-            `product_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-          units: item.quantity,
-          selling_price: Math.round(item.price * 100) / 100,
-        };
-      });
-
-      totalWeight = Math.max(totalWeight, 0.5);
-
-      const cleanPhone = address.phone.replace(/\D/g, "");
-
-      const orderData = {
-        order_id: `order_${Date.now()}_${Math.random()
-          .toString(36)
-          .substr(2, 9)}`,
-        order_date: new Date().toISOString().split("T")[0],
-        pickup_location: "Primary",
-        billing_customer_name: address.fullName.trim(),
-        billing_last_name: "",
-        billing_address: address.address.trim(),
-        billing_city: address.city.trim(),
-        billing_pincode: address.pincode.trim(),
-        billing_state: address.state.trim(),
-        billing_country: "India",
-        billing_email: address.email.trim().toLowerCase(),
-        billing_phone: cleanPhone,
-        shipping_is_billing: true,
-        order_items: orderItems,
-        payment_method: "Prepaid",
-        sub_total: Math.round(cart.subtotal * 100) / 100,
-        length: 15,
-        breadth: 15,
-        height: 15,
-        weight: Math.round(totalWeight * 100) / 100,
-      };
-
-      console.log("Launching Shiprocket checkout with order data:", orderData);
-
-      // Launch real Shiprocket checkout
-      const checkoutResult = await shiprocketApi.launchShiprocketCheckout(
-        orderData
-      );
-      console.log("Shiprocket checkout launched successfully:", checkoutResult);
-
-      // Close the cart sidebar
-      toggleCart();
-    } catch (err: any) {
-      console.error("Failed to proceed to Shiprocket checkout:", err);
-      const errorMessage =
-        err.message || "Unknown error occurred. Please try again.";
-      setError(errorMessage);
-      throw new Error(errorMessage);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   // Add item to cart
   const addToCart = async (product: any) => {
@@ -405,7 +287,6 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
         applyCoupon,
         removeCoupon,
         checkoutCart,
-        proceedToShiprocketCheckout, // Updated function signature
       }}
     >
       {children}

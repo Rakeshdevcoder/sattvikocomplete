@@ -6,14 +6,7 @@ import { FiShoppingCart, FiMinus, FiPlus, FiTrash2 } from "react-icons/fi";
 import styles from "../styles/cart.module.css";
 
 const Cart = () => {
-  const {
-    cart,
-    loading,
-    error,
-    updateCartItem,
-    removeCartItem,
-    proceedToShiprocketCheckout,
-  } = useCart();
+  const { cart, loading, error, updateCartItem, removeCartItem } = useCart();
 
   const [updatingItemId, setUpdatingItemId] = useState<string | null>(null);
 
@@ -38,6 +31,11 @@ const Cart = () => {
     setUpdatingItemId(itemId);
     await removeCartItem(itemId);
     setUpdatingItemId(null);
+  };
+
+  const handleCheckout = () => {
+    // Navigate to checkout page
+    window.location.href = "/checkout";
   };
 
   if (loading) {
@@ -169,10 +167,7 @@ const Cart = () => {
             <span>₹{cart.totalAmount.toFixed(2)}</span>
           </div>
 
-          <button
-            onClick={() => proceedToShiprocketCheckout()}
-            className={styles.checkoutButton}
-          >
+          <button onClick={handleCheckout} className={styles.checkoutButton}>
             PROCEED TO CHECKOUT
           </button>
 

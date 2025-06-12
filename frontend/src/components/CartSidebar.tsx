@@ -7,20 +7,10 @@ import { FiCheck, FiX, FiLoader } from "react-icons/fi";
 import styles from "../styles/CartSidebar.module.css";
 
 const CartSidebar: React.FC = () => {
-  const {
-    cart,
-    loading,
-    error,
-    isCartOpen,
-    toggleCart,
-    proceedToShiprocketCheckout,
-  } = useCart();
+  const { cart, loading, error, isCartOpen, toggleCart } = useCart();
 
   const { user } = useAuth();
   const [currentItem, setCurrentItem] = useState<any>(null);
-  const [showAddressModal, setShowAddressModal] = useState(false);
-  const [checkoutLoading, setCheckoutLoading] = useState(false);
-  const [checkoutError, setCheckoutError] = useState<string | null>(null);
 
   useEffect(() => {
     if (cart && cart.items.length > 0 && isCartOpen) {
@@ -31,83 +21,18 @@ const CartSidebar: React.FC = () => {
     }
   }, [cart, isCartOpen]);
 
-  useEffect(() => {
-    if (!showAddressModal) {
-      setCheckoutError(null);
-    }
-  }, [showAddressModal]);
-
-  const handleBuyNow = async () => {
+  const handleBuyNow = () => {
     if (!user) {
       window.dispatchEvent(new CustomEvent("openAuthModal"));
       return;
     }
 
     if (!cart || !cart.items || cart.items.length === 0) {
-      setCheckoutError("Your cart is empty. Please add items before checkout.");
       return;
     }
 
-    setShowAddressModal(true);
-    setCheckoutError(null);
-  };
-
-  const handleAddressSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setCheckoutLoading(true);
-    setCheckoutError(null);
-
-    const formData = new FormData(e.currentTarget as HTMLFormElement);
-
-    const address = {
-      fullName: (formData.get("fullName") as string)?.trim() || "",
-      address: (formData.get("address") as string)?.trim() || "",
-      city: (formData.get("city") as string)?.trim() || "",
-      state: (formData.get("state") as string)?.trim() || "",
-      pincode: (formData.get("pincode") as string)?.trim() || "",
-      email: (formData.get("email") as string)?.trim() || "",
-      phone: (formData.get("phone") as string)?.trim() || "",
-    };
-
-    try {
-      // Validate required fields
-      if (!address.fullName) throw new Error("Full name is required");
-      if (!address.address) throw new Error("Address is required");
-      if (!address.city) throw new Error("City is required");
-      if (!address.state) throw new Error("State is required");
-      if (!address.pincode) throw new Error("Pincode is required");
-      if (!address.email) throw new Error("Email is required");
-      if (!address.phone) throw new Error("Phone number is required");
-
-      // Validate formats
-      if (!/^\d{6}$/.test(address.pincode)) {
-        throw new Error("Please enter a valid 6-digit pincode");
-      }
-
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(address.email)) {
-        throw new Error("Please enter a valid email address");
-      }
-
-      const cleanPhone = address.phone.replace(/\D/g, "");
-      if (cleanPhone.length !== 10) {
-        throw new Error("Please enter a valid 10-digit phone number");
-      }
-
-      address.phone = cleanPhone;
-
-      // Proceed with Shiprocket checkout
-      await proceedToShiprocketCheckout(address);
-
-      // Close modal on success
-      setShowAddressModal(false);
-      setCheckoutError(null);
-    } catch (error: any) {
-      console.error("Checkout error:", error);
-      setCheckoutError(error.message || "Checkout failed. Please try again.");
-    } finally {
-      setCheckoutLoading(false);
-    }
+    // Navigate to checkout page
+    window.location.href = "/checkout";
   };
 
   if (!isCartOpen || !currentItem || loading) {
@@ -215,159 +140,6 @@ const CartSidebar: React.FC = () => {
       <button onClick={toggleCart} className={styles.continueShoppingButton}>
         Continue shopping
       </button>
-
-      {showAddressModal && (
-        <div className={styles.addressModalOverlay}>
-          <div className={styles.addressModalContent}>
-            <div className={styles.addressModalHeader}>
-              <h2 className={styles.addressModalTitle}>Shipping Address</h2>
-              <button
-                onClick={() => setShowAddressModal(false)}
-                className={styles.closeButton}
-                disabled={checkoutLoading}
-              >
-                <FiX />
-              </button>
-            </div>
-
-            {checkoutError && (
-              <div
-                style={{
-                  background: "#f8d7da",
-                  color: "#721c24",
-                  padding: "12px",
-                  borderRadius: "4px",
-                  marginBottom: "20px",
-                  fontSize: "14px",
-                  border: "1px solid #f5c6cb",
-                }}
-              >
-                <strong>Error:</strong> {checkoutError}
-              </div>
-            )}
-
-            <form onSubmit={handleAddressSubmit}>
-              <div className={styles.formGroup}>
-                <label className={styles.formLabel}>Full Name *</label>
-                <input
-                  name="fullName"
-                  required
-                  className={styles.formInput}
-                  disabled={checkoutLoading}
-                  placeholder="Enter your full name"
-                />
-              </div>
-
-              <div className={styles.formGroup}>
-                <label className={styles.formLabel}>Address *</label>
-                <input
-                  name="address"
-                  required
-                  className={styles.formInput}
-                  disabled={checkoutLoading}
-                  placeholder="Enter your complete address"
-                />
-              </div>
-
-              <div className={styles.formRow}>
-                <div className={styles.formColumn}>
-                  <label className={styles.formLabel}>City *</label>
-                  <input
-                    name="city"
-                    required
-                    className={styles.formInput}
-                    disabled={checkoutLoading}
-                    placeholder="Enter city"
-                  />
-                </div>
-
-                <div className={styles.formColumn}>
-                  <label className={styles.formLabel}>State *</label>
-                  <input
-                    name="state"
-                    required
-                    className={styles.formInput}
-                    disabled={checkoutLoading}
-                    placeholder="Enter state"
-                  />
-                </div>
-              </div>
-
-              <div className={styles.formRow}>
-                <div className={styles.formColumn}>
-                  <label className={styles.formLabel}>Pincode *</label>
-                  <input
-                    name="pincode"
-                    required
-                    className={styles.formInput}
-                    pattern="[0-9]{6}"
-                    maxLength={6}
-                    placeholder="6 digit pincode"
-                    disabled={checkoutLoading}
-                    onInput={(e) => {
-                      const target = e.target as HTMLInputElement;
-                      target.value = target.value.replace(/\D/g, "");
-                    }}
-                  />
-                </div>
-
-                <div className={styles.formColumn}>
-                  <label className={styles.formLabel}>Email *</label>
-                  <input
-                    name="email"
-                    type="email"
-                    required
-                    className={styles.formInput}
-                    disabled={checkoutLoading}
-                    placeholder="Enter email address"
-                  />
-                </div>
-              </div>
-
-              <div className={styles.formGroup}>
-                <label className={styles.formLabel}>Phone *</label>
-                <input
-                  name="phone"
-                  required
-                  className={styles.formInput}
-                  defaultValue={user?.phone?.replace("+91", "") || ""}
-                  maxLength={10}
-                  placeholder="10 digit phone number"
-                  disabled={checkoutLoading}
-                  onInput={(e) => {
-                    const target = e.target as HTMLInputElement;
-                    target.value = target.value.replace(/\D/g, "");
-                  }}
-                />
-              </div>
-
-              <button
-                type="submit"
-                className={styles.submitButton}
-                disabled={checkoutLoading}
-                style={{
-                  opacity: checkoutLoading ? 0.6 : 1,
-                  cursor: checkoutLoading ? "not-allowed" : "pointer",
-                }}
-              >
-                {checkoutLoading ? (
-                  <>
-                    <FiLoader
-                      style={{
-                        animation: "spin 1s linear infinite",
-                        marginRight: "8px",
-                      }}
-                    />
-                    Processing...
-                  </>
-                ) : (
-                  "Proceed to Payment"
-                )}
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
 
       <style>
         {`

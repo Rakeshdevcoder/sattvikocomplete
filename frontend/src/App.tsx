@@ -25,7 +25,6 @@ import BundlePage from "./pages/BundlePage";
 import Home from "./pages/Home";
 import Account from "./pages/Account";
 import Cart from "./pages/Cart";
-import ShiprocketDebug from "./components/ShiprocketDebug";
 
 const App = () => {
   return (
