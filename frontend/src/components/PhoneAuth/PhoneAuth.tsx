@@ -1,7 +1,7 @@
 // src/components/PhoneAuth/PhoneAuth.tsx
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../../context/AuthContext";
-import { useCart } from "../../context/CartContext"; // Import useCart
+import { useShopifyCart } from "../../context/ShopifyCartContext"; // Import useShopifyCart
 import { FiX, FiClock } from "react-icons/fi";
 import styles from "../../styles/phoneauth.module.css";
 
@@ -11,7 +11,7 @@ interface PhoneAuthProps {
 
 const PhoneAuth: React.FC<PhoneAuthProps> = ({ onClose }) => {
   const { login, verifyOTP, loading, error, clearError } = useAuth();
-  const { userCartInitialized } = useCart(); // Get userCartInitialized
+  const { cart, loading: cartLoading } = useShopifyCart(); // Get cart and loading from ShopifyCart
 
   const [step, setStep] = useState<"phone" | "otp" | "success">("phone");
   const [phone, setPhone] = useState("");
@@ -32,16 +32,16 @@ const PhoneAuth: React.FC<PhoneAuthProps> = ({ onClose }) => {
     clearError();
   }, [step, clearError]);
 
-  // Auto close after success - now depends on userCartInitialized
+  // Auto close after success - now depends on cart being initialized
   useEffect(() => {
-    if (step === "success" && userCartInitialized) {
+    if (step === "success" && cart !== null && !cartLoading) {
       console.log("Cart initialized, closing auth modal");
       const timer = setTimeout(() => {
         onClose();
       }, 2000);
       return () => clearTimeout(timer);
     }
-  }, [step, onClose, userCartInitialized]);
+  }, [step, onClose, cart, cartLoading]);
 
   const handlePhoneSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -314,7 +314,7 @@ const PhoneAuth: React.FC<PhoneAuthProps> = ({ onClose }) => {
               <div className={styles.loadingContainer}>
                 <div className={styles.spinner}></div>
                 <p className={styles.signingText}>
-                  {userCartInitialized
+                  {cart !== null && !cartLoading
                     ? "Almost done..."
                     : "Signing you in and setting up your cart..."}
                 </p>

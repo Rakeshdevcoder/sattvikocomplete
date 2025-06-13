@@ -1,10 +1,8 @@
 // frontend/src/pages/AllProduct.tsx
 import React, { useState, useEffect } from "react";
-import axios from "axios";
-import productStyles from "../styles/productcard.module.css";
+import { shopifyApi, type ShopifyProduct } from "../api/shopifyApi";
+import ProductCard from "../components/ProductCard";
 import listStyles from "../styles/makhanas/productlist.module.css";
-
-const API_BASE_URL = "/api";
 
 export interface ProductCardProps {
   id: string;
@@ -16,244 +14,105 @@ export interface ProductCardProps {
     main: string;
     hover: string;
   };
-  isGlutenFree?: boolean;
-  isHighFibre?: boolean;
-  isGutHealth?: boolean;
-  isVegan?: boolean;
-  isHighProtein?: boolean;
+  hasAntioxidants?: boolean;
+  hasProbiotics?: boolean;
   weight: string;
+  shopifyVariantId?: string;
+  handle?: string;
 }
 
 const AllProduct = () => {
   const [products, setProducts] = useState<ProductCardProps[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [hasNextPage, setHasNextPage] = useState(false);
+  const [endCursor, setEndCursor] = useState<string | undefined>();
+
+  const mapShopifyToProductCard = (
+    shopifyProduct: ShopifyProduct
+  ): ProductCardProps => {
+    const firstVariant = shopifyProduct.variants.edges[0]?.node;
+    const mainImage =
+      shopifyProduct.images.edges[0]?.node.url ||
+      "/images/product-placeholder.png";
+    const hoverImage = shopifyProduct.images.edges[1]?.node.url || mainImage;
+
+    // Extract features from tags
+    const tags = shopifyProduct.tags.map((tag) => tag.toLowerCase());
+
+    return {
+      id: shopifyProduct.id,
+      title: shopifyProduct.title,
+      price:
+        firstVariant?.price.amount ||
+        shopifyProduct.priceRange.minVariantPrice.amount,
+      rating: undefined, // Shopify doesn't provide ratings by default
+      reviewCount: undefined,
+      images: {
+        main: mainImage,
+        hover: hoverImage,
+      },
+      hasAntioxidants:
+        tags.includes("antioxidants") || tags.includes("anti-oxidants"),
+      hasProbiotics: tags.includes("probiotics"),
+      weight: "40 GM", // Default weight, you can extract from product title or metafields
+      shopifyVariantId: firstVariant?.id,
+      handle: shopifyProduct.handle,
+    };
+  };
+
+  const fetchProducts = async (after?: string) => {
+    try {
+      setLoading(true);
+      console.log("Fetching products from Shopify...");
+
+      const response = await shopifyApi.getProducts(20, after);
+
+      const mappedProducts = response.products.map(mapShopifyToProductCard);
+
+      if (after) {
+        // Loading more products
+        setProducts((prev) => [...prev, ...mappedProducts]);
+      } else {
+        // Initial load
+        setProducts(mappedProducts);
+      }
+
+      setHasNextPage(response.pageInfo.hasNextPage);
+      setEndCursor(response.pageInfo.endCursor);
+      setError(null);
+    } catch (err: any) {
+      console.error("Error fetching Shopify products:", err);
+      setError(`Failed to load products: ${err.message}`);
+      if (!after) {
+        setProducts([]);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const mapAndSetProducts = (productsData: any[]) => {
-      if (!Array.isArray(productsData)) {
-        console.error("productsData is not an array:", productsData);
-        setProducts([]);
-        return;
-      }
-
-      const nonNullData = productsData.filter(
-        (p): p is Record<string, any> => p != null
-      );
-
-      const mappedProducts: ProductCardProps[] = nonNullData.map((product) => {
-        const productId = (product.id || product._id || "").toString();
-        const productFeatures = Array.isArray(product.features)
-          ? product.features.map((f: string) => f.toLowerCase())
-          : [];
-        const displayPrice =
-          product.salesPrice > 0
-            ? product.salesPrice
-            : product.regularPrice || product.price || 0;
-
-        return {
-          id: productId,
-          title: product.title || product.name || "Product",
-          price: displayPrice.toString(),
-          rating: product.stars > 0 ? product.stars : undefined,
-          reviewCount:
-            product.reviewCount > 0 ? product.reviewCount : undefined,
-          images: {
-            main: product.images?.[0] ?? "/images/product-placeholder.png",
-            hover:
-              product.images?.[1] ??
-              product.images?.[0] ??
-              "/images/product-placeholder.png",
-          },
-          isGlutenFree: productFeatures.includes("gluten-free"),
-          isHighFibre: productFeatures.includes("high-fibre"),
-          isGutHealth: productFeatures.includes("gut-health"),
-          isVegan: productFeatures.includes("vegan"),
-          isHighProtein: productFeatures.includes("high-protein"),
-          weight: product.weight || "40 GM",
-        };
-      });
-
-      setProducts(mappedProducts);
-    };
-
-    const fetchProducts = async () => {
-      try {
-        setLoading(true);
-        console.log("Attempting to fetch all products...");
-
-        const url = `${API_BASE_URL}/products`;
-        console.log("Request URL:", url);
-
-        const response = await axios.get(url, {
-          headers: {
-            Accept: "application/json",
-            "Content-Type": "application/json",
-          },
-        });
-
-        console.log("Response data:", response.data);
-
-        if (!response.data) {
-          console.error("API returned null data");
-          setProducts([]);
-          setError("No products data returned from API");
-          return;
-        }
-
-        if (Array.isArray(response.data)) {
-          mapAndSetProducts(response.data);
-        } else {
-          mapAndSetProducts(response.data.products || []);
-        }
-
-        setError(null);
-      } catch (err: any) {
-        console.error("Error fetching products:", err);
-        if (axios.isAxiosError(err)) {
-          console.error("API Error Details:", {
-            message: err.message,
-            status: err.response?.status,
-            statusText: err.response?.statusText,
-            data: err.response?.data,
-          });
-        }
-        setError(`Failed to load products: ${err.message}`);
-        setProducts([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchProducts();
   }, []);
 
-  const ProductCard: React.FC<{ product: ProductCardProps }> = ({ product }) => {
-    const [isHovered, setIsHovered] = useState(false);
-
-    const formatTitle = () => {
-      let title = product.title;
-      let additionalInfo = "";
-
-      const features = [];
-      if (product.isVegan) features.push("Vegan");
-      if (product.isGlutenFree) features.push("Gluten-Free");
-      if (product.isHighFibre) features.push("High-Fibre");
-      if (product.isGutHealth) features.push("Gut-Health");
-      if (product.isHighProtein) features.push("High-Protein");
-
-      if (features.length > 0) {
-        additionalInfo = ` | ${features.join(", ")}`;
-      }
-
-      return `${title} ${product.weight}${additionalInfo}`;
-    };
-
-    const formattedTitle = formatTitle();
-
-    const renderStars = () => {
-      if (!product.rating) return null;
-
-      return (
-        <div className={productStyles.rating}>
-          <div className={productStyles.stars}>
-            {[...Array(5)].map((_, i) => (
-              <span
-                key={i}
-                className={
-                  i < Math.round(product.rating!)
-                    ? productStyles.starFilled
-                    : productStyles.starEmpty
-                }
-              >
-                ★
-              </span>
-            ))}
-          </div>
-          {product.reviewCount && (
-            <span className={productStyles.reviewCount}>
-              {product.reviewCount} review{product.reviewCount !== 1 ? "s" : ""}
-            </span>
-          )}
-        </div>
-      );
-    };
-
-    const renderFeatureBadges = () => {
-      if (!product.isVegan && !product.isGlutenFree && !product.isHighProtein) {
-        return null;
-      }
-
-      return (
-        <div className={productStyles.featureBadges}>
-          {product.isVegan && <span className={productStyles.badge}>Vegan</span>}
-          {product.isGlutenFree && (
-            <span className={productStyles.badge}>Gluten-Free</span>
-          )}
-          {product.isHighProtein && (
-            <span className={productStyles.badge}>High Protein</span>
-          )}
-        </div>
-      );
-    };
-
-    return (
-      <div className={productStyles.cardWrapper}>
-        <div
-          className={productStyles.card}
-          onMouseEnter={() => setIsHovered(true)}
-          onMouseLeave={() => setIsHovered(false)}
-        >
-          <a href={`/products/${product.id}`} className={productStyles.imageLink}>
-            <div className={productStyles.imageContainer}>
-              <img
-                src={
-                  isHovered && product.images.hover
-                    ? product.images.hover
-                    : product.images.main
-                }
-                alt={formattedTitle}
-                className={productStyles.productImage}
-                loading="lazy"
-              />
-              {renderFeatureBadges()}
-            </div>
-          </a>
-
-          <div className={productStyles.contentContainer}>
-            <div className={productStyles.titleContainer}>
-              <h3 className={productStyles.cardHeading}>
-                
-                  href={`/products/${product.id}`}
-                  className={productStyles.productLink}
-                >
-                  {formattedTitle}
-                </a>
-              </h3>
-            </div>
-
-            {product.rating && product.rating > 0 && (
-              <div className={productStyles.ratingContainer}>{renderStars()}</div>
-            )}
-
-            <div className={productStyles.price}>
-              <span className={productStyles.priceRegular}>Rs. {product.price}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
+  const loadMoreProducts = () => {
+    if (hasNextPage && endCursor && !loading) {
+      fetchProducts(endCursor);
+    }
   };
 
-  if (loading) {
+  if (loading && products.length === 0) {
     return (
       <div style={{ marginLeft: "180.4px", marginRight: "180.4px" }}>
-        <div className={listStyles.loading}>Loading products...</div>
+        <div className={listStyles.loading}>
+          Loading products from Shopify...
+        </div>
       </div>
     );
   }
 
-  if (error) {
+  if (error && products.length === 0) {
     return (
       <div style={{ marginLeft: "180.4px", marginRight: "180.4px" }}>
         <div className={listStyles.error}>{error}</div>
@@ -265,7 +124,7 @@ const AllProduct = () => {
     return (
       <div style={{ marginLeft: "180.4px", marginRight: "180.4px" }}>
         <div className={listStyles.noProducts}>
-          No products found for the selected criteria.
+          No products found in your Shopify store.
         </div>
       </div>
     );
@@ -278,6 +137,43 @@ const AllProduct = () => {
           <ProductCard key={product.id} product={product} />
         ))}
       </div>
+
+      {hasNextPage && (
+        <div style={{ textAlign: "center", marginTop: "40px" }}>
+          <button
+            onClick={loadMoreProducts}
+            disabled={loading}
+            style={{
+              padding: "12px 30px",
+              background: "#007bff",
+              color: "white",
+              border: "none",
+              borderRadius: "8px",
+              fontSize: "16px",
+              fontWeight: "600",
+              cursor: loading ? "not-allowed" : "pointer",
+              opacity: loading ? 0.6 : 1,
+            }}
+          >
+            {loading ? "Loading..." : "Load More Products"}
+          </button>
+        </div>
+      )}
+
+      {error && products.length > 0 && (
+        <div
+          style={{
+            textAlign: "center",
+            marginTop: "20px",
+            color: "#dc3545",
+            padding: "10px",
+            backgroundColor: "#f8d7da",
+            borderRadius: "4px",
+          }}
+        >
+          {error}
+        </div>
+      )}
     </div>
   );
 };

@@ -1,25 +1,9 @@
 // frontend/src/pages/Makhanas.tsx
 import React, { useState, useEffect } from "react";
-import axios from "axios";
+import { shopifyApi, type ShopifyProduct } from "../api/shopifyApi";
+import ProductCard from "../components/ProductCard";
 import styles from "../styles/makhanas/collectionhero.module.css";
-import productStyles from "../styles/productcard.module.css";
 import listStyles from "../styles/makhanas/productlist.module.css";
-
-const API_BASE_URL = "/api";
-
-interface Product {
-  id: string;
-  title: string;
-  price: number;
-  regularPrice: number;
-  salesPrice: number;
-  stars: number;
-  reviewCount: number;
-  images: string[];
-  features: string[];
-  weight: string;
-  category: string;
-}
 
 interface ProductCardProps {
   id: string;
@@ -34,6 +18,8 @@ interface ProductCardProps {
   hasAntioxidants?: boolean;
   hasProbiotics?: boolean;
   weight: string;
+  shopifyVariantId?: string;
+  handle?: string;
 }
 
 const Makhanas = () => {
@@ -41,188 +27,75 @@ const Makhanas = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const mapShopifyToProductCard = (
+    shopifyProduct: ShopifyProduct
+  ): ProductCardProps => {
+    const firstVariant = shopifyProduct.variants.edges[0]?.node;
+    const mainImage =
+      shopifyProduct.images.edges[0]?.node.url ||
+      "/images/product-placeholder.png";
+    const hoverImage = shopifyProduct.images.edges[1]?.node.url || mainImage;
+
+    // Extract features from tags
+    const tags = shopifyProduct.tags.map((tag) => tag.toLowerCase());
+
+    return {
+      id: shopifyProduct.id,
+      title: shopifyProduct.title,
+      price:
+        firstVariant?.price.amount ||
+        shopifyProduct.priceRange.minVariantPrice.amount,
+      rating: undefined, // Shopify doesn't provide ratings by default
+      reviewCount: undefined,
+      images: {
+        main: mainImage,
+        hover: hoverImage,
+      },
+      hasAntioxidants:
+        tags.includes("antioxidants") || tags.includes("anti-oxidants"),
+      hasProbiotics: tags.includes("probiotics"),
+      weight: "40 GM", // Default weight, you can extract from product title or metafields
+      shopifyVariantId: firstVariant?.id,
+      handle: shopifyProduct.handle,
+    };
+  };
+
   useEffect(() => {
     const fetchProducts = async () => {
       try {
         setLoading(true);
-        console.log("Attempting to fetch products...");
-
-        let queryParams = new URLSearchParams();
-        queryParams.append("category", "Makhanas");
-
-        const url = `${API_BASE_URL}/products?${queryParams.toString()}`;
-        console.log("Request URL:", url);
-
-        const response = await axios.get(url, {
-          headers: {
-            Accept: "application/json",
-            "Content-Type": "application/json",
-          },
-        });
-
-        console.log("Response data:", response.data);
-
-        if (!Array.isArray(response.data)) {
-          console.log("Response is not an array:", response.data);
-          const productsData = response.data.products || [];
-          mapAndSetProducts(productsData);
-        } else {
-          mapAndSetProducts(response.data);
-        }
-
         setError(null);
-      } catch (err: any) {
-        console.error("Error fetching products:", err);
+        console.log("Fetching makhana products from Shopify collection...");
 
-        if (axios.isAxiosError(err)) {
-          console.error("API Error Details:", {
-            message: err.message,
-            status: err.response?.status,
-            statusText: err.response?.statusText,
-            data: err.response?.data,
-          });
+        const shopifyProducts = await shopifyApi.getCollectionProducts(
+          "makhanas",
+          20
+        );
+
+        if (!shopifyProducts || shopifyProducts.length === 0) {
+          console.log("No products found in makhanas collection");
+          setProducts([]);
+          return;
         }
 
-        setError(`Failed to load products: ${err.message}`);
+        const mappedProducts = shopifyProducts.map(mapShopifyToProductCard);
+
+        // Limit to 8 products as in original code
+        const limitedProducts = mappedProducts.slice(0, 8);
+        setProducts(limitedProducts);
+
+        console.log(`Loaded ${limitedProducts.length} makhana products`);
+      } catch (err: any) {
+        console.error("Error fetching makhana products:", err);
+        setError(`Failed to load makhana products: ${err.message}`);
+        setProducts([]);
       } finally {
         setLoading(false);
       }
     };
 
-    const mapAndSetProducts = (productsData: any[]) => {
-      const mappedProducts: ProductCardProps[] = productsData.map(
-        (product: any) => {
-          const productId = product.id || product._id || "";
-          const hasAntioxidants =
-            product.features?.includes("antioxidants") || false;
-          const hasProbiotics =
-            product.features?.includes("probiotics") || false;
-
-          const displayPrice =
-            product.salesPrice > 0
-              ? product.salesPrice
-              : product.regularPrice || product.price || 0;
-
-          return {
-            id: productId.toString(),
-            title: product.title || product.name || "Product",
-            price: displayPrice.toString(),
-            rating: product.stars > 0 ? product.stars : undefined,
-            reviewCount:
-              product.reviewCount > 0 ? product.reviewCount : undefined,
-            images: {
-              main: product.images?.[0] || "/images/product-placeholder.png",
-              hover:
-                product.images?.[1] ||
-                product.images?.[0] ||
-                "/images/product-placeholder.png",
-            },
-            hasAntioxidants,
-            hasProbiotics,
-            weight: product.weight || "40 GM",
-          };
-        }
-      );
-
-      const limitedProducts = mappedProducts.slice(0, 8);
-      setProducts(limitedProducts);
-    };
-
     fetchProducts();
   }, []);
-
-  const ProductCard: React.FC<{ product: ProductCardProps }> = ({ product }) => {
-    const [isHovered, setIsHovered] = useState(false);
-
-    const formatTitle = () => {
-      let title = product.title;
-      let additionalInfo = "";
-
-      if (product.hasProbiotics) {
-        additionalInfo = " | With Probiotics";
-      } else if (product.hasAntioxidants) {
-        additionalInfo = " | With Anti Oxidants";
-      }
-
-      return `${title} ${product.weight}${additionalInfo}`;
-    };
-
-    const formattedTitle = formatTitle();
-
-    const renderStars = () => {
-      if (!product.rating) return null;
-
-      return (
-        <div className={productStyles.rating}>
-          <div className={productStyles.stars}>
-            {[...Array(5)].map((_, i) => (
-              <span
-                key={i}
-                className={
-                  i < Math.round(product.rating!)
-                    ? productStyles.starFilled
-                    : productStyles.starEmpty
-                }
-              >
-                ★
-              </span>
-            ))}
-          </div>
-          {product.reviewCount && (
-            <span className={productStyles.reviewCount}>
-              {product.reviewCount} review{product.reviewCount !== 1 ? "s" : ""}
-            </span>
-          )}
-        </div>
-      );
-    };
-
-    return (
-      <div className={productStyles.cardWrapper}>
-        <div
-          className={productStyles.card}
-          onMouseEnter={() => setIsHovered(true)}
-          onMouseLeave={() => setIsHovered(false)}
-        >
-          <a href={`/products/${product.id}`} className={productStyles.imageLink}>
-            <div className={productStyles.imageContainer}>
-              <img
-                src={
-                  isHovered && product.images.hover
-                    ? product.images.hover
-                    : product.images.main
-                }
-                alt={formattedTitle}
-                className={productStyles.productImage}
-                loading="lazy"
-              />
-            </div>
-          </a>
-
-          <div className={productStyles.contentContainer}>
-            <div className={productStyles.titleContainer}>
-              <h3 className={productStyles.cardHeading}>
-                
-                  href={`/products/${product.id}`}
-                  className={productStyles.productLink}
-                >
-                  {formattedTitle}
-                </a>
-              </h3>
-            </div>
-
-            {product.rating && product.rating > 0 && (
-              <div className={productStyles.ratingContainer}>{renderStars()}</div>
-            )}
-
-            <div className={productStyles.price}>
-              <span className={productStyles.priceRegular}>Rs. {product.price}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  };
 
   return (
     <>
@@ -240,20 +113,21 @@ const Makhanas = () => {
                   <strong>A Wholesome Snack with a Functional Twist</strong>
                 </p>
                 <p>
-                  Discover our range of <em>Flavoured Makhana</em>, a deliciously
-                  healthy snack that goes beyond taste. These roasted fox nuts are
-                  packed with <strong>antioxidants</strong> to fight free radicals
-                  and support overall wellness. Enriched with{" "}
-                  <strong>probiotics</strong>, they also promote better gut health
-                  and digestion.
+                  Discover our range of <em>Flavoured Makhana</em>, a
+                  deliciously healthy snack that goes beyond taste. These
+                  roasted fox nuts are packed with <strong>antioxidants</strong>{" "}
+                  to fight free radicals and support overall wellness. Enriched
+                  with <strong>probiotics</strong>, they also promote better gut
+                  health and digestion.
                 </p>
                 <p>
                   Each bite delivers a good source of{" "}
-                  <strong>plant-based protein</strong>, making it an ideal snack for
-                  fitness enthusiasts and mindful eaters. We've thoughtfully added{" "}
-                  <strong>sesame seeds</strong> for an extra crunch and a boost of
-                  calcium and healthy fats, and <strong>Ashwagandha</strong>, the
-                  ancient adaptogen known to reduce stress and support vitality.
+                  <strong>plant-based protein</strong>, making it an ideal snack
+                  for fitness enthusiasts and mindful eaters. We've thoughtfully
+                  added <strong>sesame seeds</strong> for an extra crunch and a
+                  boost of calcium and healthy fats, and{" "}
+                  <strong>Ashwagandha</strong>, the ancient adaptogen known to
+                  reduce stress and support vitality.
                 </p>
                 <p>
                   Perfectly roasted and seasoned, our makhanas are not just
@@ -265,11 +139,18 @@ const Makhanas = () => {
         </div>
 
         {/* Product List */}
-        {loading && <div className={listStyles.loading}>Loading products...</div>}
-        {error && <div className={listStyles.error}>{error}</div>}
-        {!loading && !error && products.length === 0 && (
-          <div className={listStyles.noProducts}>No products found.</div>
+        {loading && (
+          <div className={listStyles.loading}>Loading makhana products...</div>
         )}
+
+        {error && <div className={listStyles.error}>{error}</div>}
+
+        {!loading && !error && products.length === 0 && (
+          <div className={listStyles.noProducts}>
+            No makhana products found in the collection.
+          </div>
+        )}
+
         {!loading && !error && products.length > 0 && (
           <div className={listStyles.productGrid}>
             {products.map((product) => (

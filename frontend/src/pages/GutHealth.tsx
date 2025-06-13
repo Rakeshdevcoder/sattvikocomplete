@@ -1,12 +1,11 @@
 // frontend/src/pages/GutHealth.tsx
 import React, { useState, useEffect } from "react";
-import axios from "axios";
-import productStyles from "../styles/productcard.module.css";
+import { shopifyApi, type ShopifyProduct } from "../api/shopifyApi";
+import ProductCard from "../components/ProductCard";
+import styles from "../styles/makhanas/collectionhero.module.css";
 import listStyles from "../styles/makhanas/productlist.module.css";
 
-const API_BASE_URL = "/api";
-
-export interface ProductCardProps {
+interface ProductCardProps {
   id: string;
   title: string;
   price: string;
@@ -16,12 +15,11 @@ export interface ProductCardProps {
     main: string;
     hover: string;
   };
-  isGlutenFree?: boolean;
-  isHighFibre?: boolean;
-  isGutHealth?: boolean;
-  isVegan?: boolean;
-  isHighProtein?: boolean;
+  hasAntioxidants?: boolean;
+  hasProbiotics?: boolean;
   weight: string;
+  shopifyVariantId?: string;
+  handle?: string;
 }
 
 const GutHealth = () => {
@@ -29,101 +27,104 @@ const GutHealth = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const mapAndSetProducts = (productsData: any[]) => {
-      if (!Array.isArray(productsData)) {
-        console.error("productsData is not an array:", productsData);
-        setProducts([]);
-        return;
-      }
+  const mapShopifyToProductCard = (
+    shopifyProduct: ShopifyProduct
+  ): ProductCardProps => {
+    const firstVariant = shopifyProduct.variants.edges[0]?.node;
+    const mainImage =
+      shopifyProduct.images.edges[0]?.node.url ||
+      "/images/product-placeholder.png";
+    const hoverImage = shopifyProduct.images.edges[1]?.node.url || mainImage;
 
-      const nonNullData = productsData.filter(
-        (p): p is Record<string, any> => p != null
-      );
+    // Extract features from tags
+    const tags = shopifyProduct.tags.map((tag) => tag.toLowerCase());
 
-      const mappedProducts: ProductCardProps[] = nonNullData.map((product) => {
-        const productId = (product.id || product._id || "").toString();
-        const productFeatures = Array.isArray(product.features)
-          ? product.features.map((f: string) => f.toLowerCase())
-          : [];
-        const displayPrice =
-          product.salesPrice > 0
-            ? product.salesPrice
-            : product.regularPrice || product.price || 0;
-
-        return {
-          id: productId,
-          title: product.title || product.name || "Product",
-          price: displayPrice.toString(),
-          rating: product.stars > 0 ? product.stars : undefined,
-          reviewCount:
-            product.reviewCount > 0 ? product.reviewCount : undefined,
-          images: {
-            main: product.images?.[0] ?? "/images/product-placeholder.png",
-            hover:
-              product.images?.[1] ??
-              product.images?.[0] ??
-              "/images/product-placeholder.png",
-          },
-          isGlutenFree: productFeatures.includes("gluten-free"),
-          isHighFibre: productFeatures.includes("high-fibre"),
-          isGutHealth: productFeatures.includes("gut-health"),
-          isVegan: productFeatures.includes("vegan"),
-          isHighProtein: productFeatures.includes("high-protein"),
-          weight: product.weight || "40 GM",
-        };
-      });
-
-      const filteredProducts = mappedProducts.filter((p) => p.isGutHealth);
-      const limitedProducts = filteredProducts.slice(0, 8);
-      setProducts(limitedProducts);
+    return {
+      id: shopifyProduct.id,
+      title: shopifyProduct.title,
+      price:
+        firstVariant?.price.amount ||
+        shopifyProduct.priceRange.minVariantPrice.amount,
+      rating: undefined, // Shopify doesn't provide ratings by default
+      reviewCount: undefined,
+      images: {
+        main: mainImage,
+        hover: hoverImage,
+      },
+      hasAntioxidants:
+        tags.includes("antioxidants") || tags.includes("anti-oxidants"),
+      hasProbiotics: tags.includes("probiotics"),
+      weight: "40 GM", // Default weight, you can extract from product title or metafields
+      shopifyVariantId: firstVariant?.id,
+      handle: shopifyProduct.handle,
     };
+  };
 
+  const fetchAllProducts = async (): Promise<ShopifyProduct[]> => {
+    let allProducts: ShopifyProduct[] = [];
+    let hasNextPage = true;
+    let endCursor: string | undefined;
+
+    while (hasNextPage) {
+      try {
+        const result = await shopifyApi.getProducts(50, endCursor); // Fetch 50 products per batch
+        allProducts = [...allProducts, ...result.products];
+        hasNextPage = result.pageInfo.hasNextPage;
+        endCursor = result.pageInfo.endCursor;
+      } catch (error) {
+        console.error("Error fetching products batch:", error);
+        break;
+      }
+    }
+
+    return allProducts;
+  };
+
+  useEffect(() => {
     const fetchProducts = async () => {
       try {
         setLoading(true);
-        console.log("Attempting to fetch products...");
+        setError(null);
+        console.log("Fetching all products and filtering for gut-health...");
 
-        const queryParams = new URLSearchParams();
-        queryParams.append("feature", "gut-health");
+        // Fetch all products from the store
+        const allProducts = await fetchAllProducts();
 
-        const url = `${API_BASE_URL}/products?${queryParams.toString()}`;
-        console.log("Request URL:", url);
-
-        const response = await axios.get(url, {
-          headers: {
-            Accept: "application/json",
-            "Content-Type": "application/json",
-          },
-        });
-
-        console.log("Response data:", response.data);
-
-        if (!response.data) {
-          console.error("API returned null data");
+        if (!allProducts || allProducts.length === 0) {
+          console.log("No products found in the store");
           setProducts([]);
-          setError("No products data returned from API");
           return;
         }
 
-        if (Array.isArray(response.data)) {
-          mapAndSetProducts(response.data);
-        } else {
-          mapAndSetProducts(response.data.products || []);
+        // Filter products that have "gut-health" tag
+        const gutHealthProducts = allProducts.filter((product) => {
+          const tags = product.tags.map((tag) => tag.toLowerCase());
+          return (
+            tags.includes("gut-health") ||
+            tags.includes("gut health") ||
+            tags.includes("guthealth") ||
+            tags.includes("probiotics") ||
+            tags.includes("digestive-health") ||
+            tags.includes("digestive health")
+          );
+        });
+
+        console.log(
+          `Found ${gutHealthProducts.length} gut-health products out of ${allProducts.length} total products`
+        );
+
+        if (gutHealthProducts.length === 0) {
+          setProducts([]);
+          return;
         }
 
-        setError(null);
+        const mappedProducts = gutHealthProducts.map(mapShopifyToProductCard);
+        setProducts(mappedProducts);
+
+        console.log(`Loaded ${mappedProducts.length} gut-health products`);
       } catch (err: any) {
-        console.error("Error fetching products:", err);
-        if (axios.isAxiosError(err)) {
-          console.error("API Error Details:", {
-            message: err.message,
-            status: err.response?.status,
-            statusText: err.response?.statusText,
-            data: err.response?.data,
-          });
-        }
-        setError(`Failed to load products: ${err.message}`);
+        console.error("Error fetching gut-health products:", err);
+        setError(`Failed to load gut-health products: ${err.message}`);
         setProducts([]);
       } finally {
         setLoading(false);
@@ -133,157 +134,62 @@ const GutHealth = () => {
     fetchProducts();
   }, []);
 
-  const ProductCard: React.FC<{ product: ProductCardProps }> = ({ product }) => {
-    const [isHovered, setIsHovered] = useState(false);
+  return (
+    <>
+      <div style={{ marginLeft: "180.4px", marginRight: "180.4px" }}>
+        {/* Collection Hero */}
+        <div className={styles.collectionHero}>
+          <div className={styles.heroInner}>
+            <div className={styles.textWrapper}>
+              <h1 className={styles.title}>
+                <span className={styles.visuallyHidden}>Collection: </span>
+                Gut Health Products
+              </h1>
+              <div className={styles.description}>
+                <p>
+                  <strong>
+                    Nourish your gut with our probiotic-rich and
+                    digestive-friendly products.
+                  </strong>
+                </p>
+                <p>
+                  Discover our carefully curated collection of gut-health
+                  focused snacks and meals enriched with probiotics and
+                  prebiotics. Each product is designed to support digestive
+                  wellness, boost immunity, and promote a healthy gut
+                  microbiome. Perfect for maintaining digestive balance while
+                  enjoying delicious, functional foods that work from the inside
+                  out.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
 
-    const formatTitle = () => {
-      let title = product.title;
-      let additionalInfo = "";
+        {/* Product List */}
+        {loading && (
+          <div className={listStyles.loading}>
+            Loading gut-health products...
+          </div>
+        )}
 
-      const features = [];
-      if (product.isVegan) features.push("Vegan");
-      if (product.isGlutenFree) features.push("Gluten-Free");
-      if (product.isHighFibre) features.push("High-Fibre");
-      if (product.isGutHealth) features.push("Gut-Health");
-      if (product.isHighProtein) features.push("High-Protein");
+        {error && <div className={listStyles.error}>{error}</div>}
 
-      if (features.length > 0) {
-        additionalInfo = ` | ${features.join(", ")}`;
-      }
+        {!loading && !error && products.length === 0 && (
+          <div className={listStyles.noProducts}>
+            No gut-health products found in the store.
+          </div>
+        )}
 
-      return `${title} ${product.weight}${additionalInfo}`;
-    };
-
-    const formattedTitle = formatTitle();
-
-    const renderStars = () => {
-      if (!product.rating) return null;
-
-      return (
-        <div className={productStyles.rating}>
-          <div className={productStyles.stars}>
-            {[...Array(5)].map((_, i) => (
-              <span
-                key={i}
-                className={
-                  i < Math.round(product.rating!)
-                    ? productStyles.starFilled
-                    : productStyles.starEmpty
-                }
-              >
-                ★
-              </span>
+        {!loading && !error && products.length > 0 && (
+          <div className={listStyles.productGrid}>
+            {products.map((product) => (
+              <ProductCard key={product.id} product={product} />
             ))}
           </div>
-          {product.reviewCount && (
-            <span className={productStyles.reviewCount}>
-              {product.reviewCount} review{product.reviewCount !== 1 ? "s" : ""}
-            </span>
-          )}
-        </div>
-      );
-    };
-
-    const renderFeatureBadges = () => {
-      if (!product.isVegan && !product.isGlutenFree && !product.isHighProtein) {
-        return null;
-      }
-
-      return (
-        <div className={productStyles.featureBadges}>
-          {product.isVegan && <span className={productStyles.badge}>Vegan</span>}
-          {product.isGlutenFree && (
-            <span className={productStyles.badge}>Gluten-Free</span>
-          )}
-          {product.isHighProtein && (
-            <span className={productStyles.badge}>High Protein</span>
-          )}
-        </div>
-      );
-    };
-
-    return (
-      <div className={productStyles.cardWrapper}>
-        <div
-          className={productStyles.card}
-          onMouseEnter={() => setIsHovered(true)}
-          onMouseLeave={() => setIsHovered(false)}
-        >
-          <a href={`/products/${product.id}`} className={productStyles.imageLink}>
-            <div className={productStyles.imageContainer}>
-              <img
-                src={
-                  isHovered && product.images.hover
-                    ? product.images.hover
-                    : product.images.main
-                }
-                alt={formattedTitle}
-                className={productStyles.productImage}
-                loading="lazy"
-              />
-              {renderFeatureBadges()}
-            </div>
-          </a>
-
-          <div className={productStyles.contentContainer}>
-            <div className={productStyles.titleContainer}>
-              <h3 className={productStyles.cardHeading}>
-                
-                  href={`/products/${product.id}`}
-                  className={productStyles.productLink}
-                >
-                  {formattedTitle}
-                </a>
-              </h3>
-            </div>
-
-            {product.rating && product.rating > 0 && (
-              <div className={productStyles.ratingContainer}>{renderStars()}</div>
-            )}
-
-            <div className={productStyles.price}>
-              <span className={productStyles.priceRegular}>Rs. {product.price}</span>
-            </div>
-          </div>
-        </div>
+        )}
       </div>
-    );
-  };
-
-  if (loading) {
-    return (
-      <div style={{ marginLeft: "180.4px", marginRight: "180.4px" }}>
-        <div className={listStyles.loading}>Loading products...</div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div style={{ marginLeft: "180.4px", marginRight: "180.4px" }}>
-        <div className={listStyles.error}>{error}</div>
-      </div>
-    );
-  }
-
-  if (products.length === 0) {
-    return (
-      <div style={{ marginLeft: "180.4px", marginRight: "180.4px" }}>
-        <div className={listStyles.noProducts}>
-          No products found for the selected criteria.
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div style={{ marginLeft: "180.4px", marginRight: "180.4px" }}>
-      <div className={listStyles.productGrid}>
-        {products.map((product) => (
-          <ProductCard key={product.id} product={product} />
-        ))}
-      </div>
-    </div>
+    </>
   );
 };
 
