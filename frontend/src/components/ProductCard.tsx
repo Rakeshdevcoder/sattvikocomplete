@@ -13,59 +13,99 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
   const [isAddingToCart, setIsAddingToCart] = useState(false);
   const { addToCart } = useShopifyCart();
 
-  // Safely check if product and its properties exist
+  // Debug logging to see what data we're getting
+  console.log("ProductCard received product:", {
+    id: product?.id,
+    title: product?.title,
+    images: product?.images,
+    variants: product?.variants,
+    availableForSale: product?.availableForSale,
+  });
+
+  // Better placeholder image - using a data URL for a simple gray placeholder
+  const PLACEHOLDER_IMAGE =
+    "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjBmMGYwIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzk5OTk5OSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPk5vIEltYWdlPC90ZXh0Pjwvc3ZnPg==";
+
+  // Safely check if product exists
   if (!product) {
     console.warn("ProductCard: No product data provided");
     return null;
   }
 
-  // Get the first available variant with null checks
+  // Get the first available variant with proper null checks
   const firstVariant = product.variants?.edges?.[0]?.node;
   const isAvailable =
     product.availableForSale && (firstVariant?.availableForSale ?? false);
 
-  // Get product images with null checks
-  const mainImage =
-    product.images?.edges?.[0]?.node?.url ||
-    "https://via.placeholder.com/300x300?text=Product";
+  // Get product images with proper access to Shopify structure
+  const mainImage = product.images?.edges?.[0]?.node?.url || PLACEHOLDER_IMAGE;
   const hoverImage = product.images?.edges?.[1]?.node?.url || mainImage;
+
+  console.log("ProductCard images:", {
+    mainImage,
+    hoverImage,
+    hasImages: product.images?.edges?.length > 0,
+  });
 
   // Format price using Intl for proper currency formatting
   const formatPrice = (amount: string, currencyCode: string = "INR") => {
     try {
+      const numericAmount = parseFloat(amount);
+      if (isNaN(numericAmount)) {
+        console.warn("Invalid price amount:", amount);
+        return `₹${amount}`;
+      }
+
       return new Intl.NumberFormat("en-IN", {
         style: "currency",
         currency: currencyCode,
         minimumFractionDigits: 0,
         maximumFractionDigits: 2,
-      }).format(parseFloat(amount));
+      }).format(numericAmount);
     } catch (error) {
       console.warn("Error formatting price:", error);
       return `₹${amount}`;
     }
   };
 
-  // Get display price with safety checks
-  const currentPrice = firstVariant?.price?.amount
-    ? formatPrice(
-        firstVariant.price.amount,
-        firstVariant.price.currencyCode || "INR"
-      )
-    : "Price unavailable";
+  // Get display price with comprehensive safety checks
+  let currentPrice = "Price unavailable";
+  let comparePrice: string | null = null;
 
-  const comparePrice = firstVariant?.compareAtPrice?.amount
-    ? formatPrice(
-        firstVariant.compareAtPrice.amount,
-        firstVariant.compareAtPrice.currencyCode || "INR"
-      )
-    : null;
+  if (firstVariant?.price?.amount) {
+    currentPrice = formatPrice(
+      firstVariant.price.amount,
+      firstVariant.price.currencyCode || "INR"
+    );
+    console.log("ProductCard current price:", currentPrice);
+  } else {
+    console.warn("No price found for product:", product.title);
+  }
+
+  if (firstVariant?.compareAtPrice?.amount) {
+    comparePrice = formatPrice(
+      firstVariant.compareAtPrice.amount,
+      firstVariant.compareAtPrice.currencyCode || "INR"
+    );
+  }
+
+  console.log("ProductCard pricing:", {
+    currentPrice,
+    comparePrice,
+    rawPrice: firstVariant?.price,
+    rawComparePrice: firstVariant?.compareAtPrice,
+  });
 
   // Handle add to cart
   const handleAddToCart = async (e: React.MouseEvent) => {
     e.preventDefault();
 
     if (!firstVariant?.id || !isAvailable) {
-      console.warn("Product variant not available:", product.title);
+      console.warn("Product variant not available:", {
+        variantId: firstVariant?.id,
+        isAvailable,
+        productTitle: product.title,
+      });
       return;
     }
 
@@ -86,6 +126,12 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
     }
   };
 
+  // Handle image error
+  const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>) => {
+    console.warn("Image failed to load:", e.currentTarget.src);
+    e.currentTarget.src = PLACEHOLDER_IMAGE;
+  };
+
   // Generate product URL
   const productUrl = `/products/${product.handle || product.id}`;
 
@@ -104,10 +150,13 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
               alt={product.title || "Product"}
               className={styles.productImage}
               loading="lazy"
-              onError={(e) => {
-                e.currentTarget.src =
-                  "https://via.placeholder.com/300x300?text=Product";
-              }}
+              onError={handleImageError}
+              onLoad={() =>
+                console.log(
+                  "Image loaded successfully:",
+                  isHovered ? hoverImage : mainImage
+                )
+              }
             />
           </a>
 
@@ -171,7 +220,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
               isAddingToCart ? styles.addedToCart : ""
             } ${!isAvailable ? styles.disabled : ""}`}
             onClick={handleAddToCart}
-            disabled={isAddingToCart || !isAvailable}
+            disabled={isAddingToCart || !isAvailable || !firstVariant?.id}
             aria-label={
               isAddingToCart
                 ? "Adding to cart..."
@@ -183,7 +232,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
             <span>
               {isAddingToCart
                 ? "Added to cart!"
-                : !isAvailable
+                : !isAvailable || !firstVariant?.id
                 ? "Unavailable"
                 : "Add to cart"}
             </span>
