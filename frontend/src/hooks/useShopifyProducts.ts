@@ -21,10 +21,8 @@ export const useShopifyProducts = (first: number = 20) => {
       const result = await shopifyApi.getProducts(first, after);
 
       if (after) {
-        // Append to existing products for pagination
         setProducts((prev) => [...prev, ...result.products]);
       } else {
-        // Replace products for initial load
         setProducts(result.products);
       }
 
@@ -32,7 +30,7 @@ export const useShopifyProducts = (first: number = 20) => {
       setEndCursor(result.pageInfo.endCursor);
     } catch (err: any) {
       console.error("Failed to fetch products:", err);
-      setError("Failed to load products. Please try again.");
+      setError(err.message || "Failed to load products. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -65,7 +63,10 @@ export const useShopifyProduct = (handle: string) => {
 
   useEffect(() => {
     const fetchProduct = async () => {
-      if (!handle) return;
+      if (!handle) {
+        setLoading(false);
+        return;
+      }
 
       try {
         setLoading(true);
@@ -75,7 +76,7 @@ export const useShopifyProduct = (handle: string) => {
         setProduct(fetchedProduct);
       } catch (err: any) {
         console.error("Failed to fetch product:", err);
-        setError("Failed to load product. Please try again.");
+        setError(err.message || "Failed to load product. Please try again.");
       } finally {
         setLoading(false);
       }
@@ -90,7 +91,12 @@ export const useShopifyProduct = (handle: string) => {
     error,
     refetch: () => {
       if (handle) {
-        // Re-trigger the effect by updating the dependency
+        setLoading(true);
+        shopifyApi
+          .getProductByHandle(handle)
+          .then(setProduct)
+          .catch((err) => setError(err.message))
+          .finally(() => setLoading(false));
       }
     },
   };
@@ -111,7 +117,9 @@ export const useShopifyCollections = () => {
         setCollections(fetchedCollections);
       } catch (err: any) {
         console.error("Failed to fetch collections:", err);
-        setError("Failed to load collections. Please try again.");
+        setError(
+          err.message || "Failed to load collections. Please try again."
+        );
       } finally {
         setLoading(false);
       }
@@ -124,7 +132,14 @@ export const useShopifyCollections = () => {
     collections,
     loading,
     error,
-    refetch: setCollections,
+    refetch: () => {
+      setLoading(true);
+      shopifyApi
+        .getCollections()
+        .then(setCollections)
+        .catch((err) => setError(err.message))
+        .finally(() => setLoading(false));
+    },
   };
 };
 
@@ -135,7 +150,10 @@ export const useShopifyCollectionProducts = (handle: string) => {
 
   useEffect(() => {
     const fetchCollectionProducts = async () => {
-      if (!handle) return;
+      if (!handle) {
+        setLoading(false);
+        return;
+      }
 
       try {
         setLoading(true);
@@ -145,7 +163,9 @@ export const useShopifyCollectionProducts = (handle: string) => {
         setProducts(fetchedProducts);
       } catch (err: any) {
         console.error("Failed to fetch collection products:", err);
-        setError("Failed to load collection products. Please try again.");
+        setError(
+          err.message || "Failed to load collection products. Please try again."
+        );
       } finally {
         setLoading(false);
       }
@@ -160,7 +180,12 @@ export const useShopifyCollectionProducts = (handle: string) => {
     error,
     refetch: () => {
       if (handle) {
-        // Re-trigger the effect
+        setLoading(true);
+        shopifyApi
+          .getCollectionProducts(handle)
+          .then(setProducts)
+          .catch((err) => setError(err.message))
+          .finally(() => setLoading(false));
       }
     },
   };

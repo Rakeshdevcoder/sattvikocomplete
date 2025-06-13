@@ -33,7 +33,7 @@ export interface ShopifyProduct {
           value: string;
         }>;
         availableForSale: boolean;
-        quantityAvailable: number;
+        quantityAvailable?: number;
       };
     }>;
   };
@@ -125,10 +125,6 @@ export interface ShopifyCart {
       amount: string;
       currencyCode: string;
     };
-    totalDutyAmount?: {
-      amount: string;
-      currencyCode: string;
-    };
   };
   checkoutUrl: string;
   totalQuantity: number;
@@ -139,19 +135,26 @@ class ShopifyApiClient {
   private cartId: string | null = null;
 
   constructor() {
+    const storeDomain = import.meta.env.VITE_SHOPIFY_STORE_DOMAIN;
+    const accessToken = import.meta.env.VITE_SHOPIFY_STOREFRONT_ACCESS_TOKEN;
+
+    if (!storeDomain || !accessToken) {
+      throw new Error(
+        "Missing Shopify configuration. Please check your environment variables."
+      );
+    }
+
     this.client = createStorefrontApiClient({
-      storeDomain:
-        import.meta.env.VITE_SHOPIFY_STORE_DOMAIN || "your-store.myshopify.com",
-      apiVersion: "2024-04",
-      publicAccessToken:
-        import.meta.env.VITE_SHOPIFY_STOREFRONT_ACCESS_TOKEN || "your-token",
+      storeDomain: storeDomain.includes("http")
+        ? storeDomain
+        : `https://${storeDomain}`,
+      apiVersion: "2024-10",
+      publicAccessToken: accessToken,
     });
 
-    // Load cart ID from localStorage
     this.cartId = localStorage.getItem("shopify_cart_id");
   }
 
-  // Get all products
   async getProducts(
     first: number = 10,
     after?: string
@@ -159,7 +162,7 @@ class ShopifyApiClient {
     products: ShopifyProduct[];
     pageInfo: { hasNextPage: boolean; endCursor?: string };
   }> {
-    const query = `#graphql
+    const query = `
       query GetProducts($first: Int!, $after: String) {
         products(first: $first, after: $after) {
           edges {
@@ -223,19 +226,29 @@ class ShopifyApiClient {
       }
     `;
 
-    const { data } = await this.client.request(query, {
-      variables: { first, after },
-    });
+    try {
+      const { data, errors } = await this.client.request(query, {
+        variables: { first, after },
+      });
 
-    return {
-      products: data.products.edges.map((edge: any) => edge.node),
-      pageInfo: data.products.pageInfo,
-    };
+      if (errors && errors.length > 0) {
+        throw new Error(
+          `GraphQL errors: ${errors.map((e: any) => e.message).join(", ")}`
+        );
+      }
+
+      return {
+        products: data.products.edges.map((edge: any) => edge.node),
+        pageInfo: data.products.pageInfo,
+      };
+    } catch (error) {
+      console.error("Error fetching products:", error);
+      throw error;
+    }
   }
 
-  // Get product by handle
   async getProductByHandle(handle: string): Promise<ShopifyProduct | null> {
-    const query = `#graphql
+    const query = `
       query GetProductByHandle($handle: String!) {
         productByHandle(handle: $handle) {
           id
@@ -291,16 +304,26 @@ class ShopifyApiClient {
       }
     `;
 
-    const { data } = await this.client.request(query, {
-      variables: { handle },
-    });
+    try {
+      const { data, errors } = await this.client.request(query, {
+        variables: { handle },
+      });
 
-    return data.productByHandle;
+      if (errors && errors.length > 0) {
+        throw new Error(
+          `GraphQL errors: ${errors.map((e: any) => e.message).join(", ")}`
+        );
+      }
+
+      return data.productByHandle;
+    } catch (error) {
+      console.error("Error fetching product by handle:", error);
+      throw error;
+    }
   }
 
-  // Get collections
   async getCollections(first: number = 10): Promise<ShopifyCollection[]> {
-    const query = `#graphql
+    const query = `
       query GetCollections($first: Int!) {
         collections(first: $first) {
           edges {
@@ -343,19 +366,29 @@ class ShopifyApiClient {
       }
     `;
 
-    const { data } = await this.client.request(query, {
-      variables: { first },
-    });
+    try {
+      const { data, errors } = await this.client.request(query, {
+        variables: { first },
+      });
 
-    return data.collections.edges.map((edge: any) => edge.node);
+      if (errors && errors.length > 0) {
+        throw new Error(
+          `GraphQL errors: ${errors.map((e: any) => e.message).join(", ")}`
+        );
+      }
+
+      return data.collections.edges.map((edge: any) => edge.node);
+    } catch (error) {
+      console.error("Error fetching collections:", error);
+      throw error;
+    }
   }
 
-  // Get products in a collection
   async getCollectionProducts(
     handle: string,
     first: number = 20
   ): Promise<ShopifyProduct[]> {
-    const query = `#graphql
+    const query = `
       query GetCollectionProducts($handle: String!, $first: Int!) {
         collectionByHandle(handle: $handle) {
           products(first: $first) {
@@ -417,19 +450,29 @@ class ShopifyApiClient {
       }
     `;
 
-    const { data } = await this.client.request(query, {
-      variables: { handle, first },
-    });
+    try {
+      const { data, errors } = await this.client.request(query, {
+        variables: { handle, first },
+      });
 
-    return (
-      data.collectionByHandle?.products.edges.map((edge: any) => edge.node) ||
-      []
-    );
+      if (errors && errors.length > 0) {
+        throw new Error(
+          `GraphQL errors: ${errors.map((e: any) => e.message).join(", ")}`
+        );
+      }
+
+      return (
+        data.collectionByHandle?.products.edges.map((edge: any) => edge.node) ||
+        []
+      );
+    } catch (error) {
+      console.error("Error fetching collection products:", error);
+      throw error;
+    }
   }
 
-  // Create cart
   async createCart(): Promise<ShopifyCart> {
-    const query = `#graphql
+    const query = `
       mutation CartCreate {
         cartCreate {
           cart {
@@ -488,10 +531,6 @@ class ShopifyApiClient {
                 amount
                 currencyCode
               }
-              totalDutyAmount {
-                amount
-                currencyCode
-              }
             }
             checkoutUrl
             totalQuantity
@@ -504,26 +543,36 @@ class ShopifyApiClient {
       }
     `;
 
-    const { data } = await this.client.request(query);
+    try {
+      const { data, errors } = await this.client.request(query);
 
-    if (data.cartCreate.userErrors.length > 0) {
-      throw new Error(data.cartCreate.userErrors[0].message);
+      if (errors && errors.length > 0) {
+        throw new Error(
+          `GraphQL errors: ${errors.map((e: any) => e.message).join(", ")}`
+        );
+      }
+
+      if (data.cartCreate.userErrors.length > 0) {
+        throw new Error(data.cartCreate.userErrors[0].message);
+      }
+
+      const cart = data.cartCreate.cart;
+      this.cartId = cart.id;
+      localStorage.setItem("shopify_cart_id", cart.id);
+
+      return cart;
+    } catch (error) {
+      console.error("Error creating cart:", error);
+      throw error;
     }
-
-    const cart = data.cartCreate.cart;
-    this.cartId = cart.id;
-    localStorage.setItem("shopify_cart_id", cart.id);
-
-    return cart;
   }
 
-  // Get cart
   async getCart(): Promise<ShopifyCart | null> {
     if (!this.cartId) {
       return await this.createCart();
     }
 
-    const query = `#graphql
+    const query = `
       query GetCart($cartId: ID!) {
         cart(id: $cartId) {
           id
@@ -581,10 +630,6 @@ class ShopifyApiClient {
               amount
               currencyCode
             }
-            totalDutyAmount {
-              amount
-              currencyCode
-            }
           }
           checkoutUrl
           totalQuantity
@@ -593,24 +638,26 @@ class ShopifyApiClient {
     `;
 
     try {
-      const { data } = await this.client.request(query, {
+      const { data, errors } = await this.client.request(query, {
         variables: { cartId: this.cartId },
       });
 
+      if (errors && errors.length > 0) {
+        console.error("GraphQL errors:", errors);
+        return await this.createCart();
+      }
+
       if (!data.cart) {
-        // Cart not found, create new one
         return await this.createCart();
       }
 
       return data.cart;
     } catch (error) {
       console.error("Error fetching cart:", error);
-      // Create new cart if there's an error
       return await this.createCart();
     }
   }
 
-  // Add items to cart
   async addToCart(
     variantId: string,
     quantity: number = 1
@@ -619,7 +666,7 @@ class ShopifyApiClient {
       await this.createCart();
     }
 
-    const query = `#graphql
+    const query = `
       mutation CartLinesAdd($cartId: ID!, $lines: [CartLineInput!]!) {
         cartLinesAdd(cartId: $cartId, lines: $lines) {
           cart {
@@ -678,10 +725,6 @@ class ShopifyApiClient {
                 amount
                 currencyCode
               }
-              totalDutyAmount {
-                amount
-                currencyCode
-              }
             }
             checkoutUrl
             totalQuantity
@@ -694,28 +737,33 @@ class ShopifyApiClient {
       }
     `;
 
-    const { data } = await this.client.request(query, {
-      variables: {
-        cartId: this.cartId,
-        lines: [
-          {
-            merchandiseId: variantId,
-            quantity,
-          },
-        ],
-      },
-    });
+    try {
+      const { data, errors } = await this.client.request(query, {
+        variables: {
+          cartId: this.cartId,
+          lines: [{ merchandiseId: variantId, quantity }],
+        },
+      });
 
-    if (data.cartLinesAdd.userErrors.length > 0) {
-      throw new Error(data.cartLinesAdd.userErrors[0].message);
+      if (errors && errors.length > 0) {
+        throw new Error(
+          `GraphQL errors: ${errors.map((e: any) => e.message).join(", ")}`
+        );
+      }
+
+      if (data.cartLinesAdd.userErrors.length > 0) {
+        throw new Error(data.cartLinesAdd.userErrors[0].message);
+      }
+
+      return data.cartLinesAdd.cart;
+    } catch (error) {
+      console.error("Error adding to cart:", error);
+      throw error;
     }
-
-    return data.cartLinesAdd.cart;
   }
 
-  // Update cart line
   async updateCartLine(lineId: string, quantity: number): Promise<ShopifyCart> {
-    const query = `#graphql
+    const query = `
       mutation CartLinesUpdate($cartId: ID!, $lines: [CartLineUpdateInput!]!) {
         cartLinesUpdate(cartId: $cartId, lines: $lines) {
           cart {
@@ -774,10 +822,6 @@ class ShopifyApiClient {
                 amount
                 currencyCode
               }
-              totalDutyAmount {
-                amount
-                currencyCode
-              }
             }
             checkoutUrl
             totalQuantity
@@ -790,28 +834,33 @@ class ShopifyApiClient {
       }
     `;
 
-    const { data } = await this.client.request(query, {
-      variables: {
-        cartId: this.cartId,
-        lines: [
-          {
-            id: lineId,
-            quantity,
-          },
-        ],
-      },
-    });
+    try {
+      const { data, errors } = await this.client.request(query, {
+        variables: {
+          cartId: this.cartId,
+          lines: [{ id: lineId, quantity }],
+        },
+      });
 
-    if (data.cartLinesUpdate.userErrors.length > 0) {
-      throw new Error(data.cartLinesUpdate.userErrors[0].message);
+      if (errors && errors.length > 0) {
+        throw new Error(
+          `GraphQL errors: ${errors.map((e: any) => e.message).join(", ")}`
+        );
+      }
+
+      if (data.cartLinesUpdate.userErrors.length > 0) {
+        throw new Error(data.cartLinesUpdate.userErrors[0].message);
+      }
+
+      return data.cartLinesUpdate.cart;
+    } catch (error) {
+      console.error("Error updating cart line:", error);
+      throw error;
     }
-
-    return data.cartLinesUpdate.cart;
   }
 
-  // Remove cart line
   async removeCartLine(lineId: string): Promise<ShopifyCart> {
-    const query = `#graphql
+    const query = `
       mutation CartLinesRemove($cartId: ID!, $lineIds: [ID!]!) {
         cartLinesRemove(cartId: $cartId, lineIds: $lineIds) {
           cart {
@@ -870,10 +919,6 @@ class ShopifyApiClient {
                 amount
                 currencyCode
               }
-              totalDutyAmount {
-                amount
-                currencyCode
-              }
             }
             checkoutUrl
             totalQuantity
@@ -886,21 +931,31 @@ class ShopifyApiClient {
       }
     `;
 
-    const { data } = await this.client.request(query, {
-      variables: {
-        cartId: this.cartId,
-        lineIds: [lineId],
-      },
-    });
+    try {
+      const { data, errors } = await this.client.request(query, {
+        variables: {
+          cartId: this.cartId,
+          lineIds: [lineId],
+        },
+      });
 
-    if (data.cartLinesRemove.userErrors.length > 0) {
-      throw new Error(data.cartLinesRemove.userErrors[0].message);
+      if (errors && errors.length > 0) {
+        throw new Error(
+          `GraphQL errors: ${errors.map((e: any) => e.message).join(", ")}`
+        );
+      }
+
+      if (data.cartLinesRemove.userErrors.length > 0) {
+        throw new Error(data.cartLinesRemove.userErrors[0].message);
+      }
+
+      return data.cartLinesRemove.cart;
+    } catch (error) {
+      console.error("Error removing cart line:", error);
+      throw error;
     }
-
-    return data.cartLinesRemove.cart;
   }
 
-  // Clear cart
   async clearCart(): Promise<ShopifyCart> {
     if (!this.cartId) {
       return await this.createCart();
@@ -913,7 +968,7 @@ class ShopifyApiClient {
 
     const lineIds = cart.lines.edges.map((edge) => edge.node.id);
 
-    const query = `#graphql
+    const query = `
       mutation CartLinesRemove($cartId: ID!, $lineIds: [ID!]!) {
         cartLinesRemove(cartId: $cartId, lineIds: $lineIds) {
           cart {
@@ -972,10 +1027,6 @@ class ShopifyApiClient {
                 amount
                 currencyCode
               }
-              totalDutyAmount {
-                amount
-                currencyCode
-              }
             }
             checkoutUrl
             totalQuantity
@@ -988,21 +1039,31 @@ class ShopifyApiClient {
       }
     `;
 
-    const { data } = await this.client.request(query, {
-      variables: {
-        cartId: this.cartId,
-        lineIds,
-      },
-    });
+    try {
+      const { data, errors } = await this.client.request(query, {
+        variables: {
+          cartId: this.cartId,
+          lineIds,
+        },
+      });
 
-    if (data.cartLinesRemove.userErrors.length > 0) {
-      throw new Error(data.cartLinesRemove.userErrors[0].message);
+      if (errors && errors.length > 0) {
+        throw new Error(
+          `GraphQL errors: ${errors.map((e: any) => e.message).join(", ")}`
+        );
+      }
+
+      if (data.cartLinesRemove.userErrors.length > 0) {
+        throw new Error(data.cartLinesRemove.userErrors[0].message);
+      }
+
+      return data.cartLinesRemove.cart;
+    } catch (error) {
+      console.error("Error clearing cart:", error);
+      throw error;
     }
-
-    return data.cartLinesRemove.cart;
   }
 
-  // Get checkout URL - this redirects to Shopify's checkout with Razorpay
   async getCheckoutUrl(): Promise<string> {
     const cart = await this.getCart();
     if (!cart) {
