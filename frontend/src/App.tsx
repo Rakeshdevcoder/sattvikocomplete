@@ -24,6 +24,7 @@ import BundlePage from "./pages/BundlePage";
 import Home from "./pages/Home";
 import Account from "./pages/Account";
 import ShopifyProductsPage from "./pages/ShopifyProductsPage";
+import ShopifyTest from "./components/ShopifyTest";
 
 const App = () => {
   return (
@@ -35,7 +36,7 @@ const App = () => {
             <HeaderComponent />
           </div>
           <ShopifyCartSidebar />
-
+          <ShopifyTest />
           <main>
             <Routes>
               {/* Public routes */}
