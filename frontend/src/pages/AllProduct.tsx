@@ -4,62 +4,12 @@ import { shopifyApi, type ShopifyProduct } from "../api/shopifyApi";
 import ProductCard from "../components/ProductCard";
 import listStyles from "../styles/makhanas/productlist.module.css";
 
-export interface ProductCardProps {
-  id: string;
-  title: string;
-  price: string;
-  rating?: number;
-  reviewCount?: number;
-  images: {
-    main: string;
-    hover: string;
-  };
-  hasAntioxidants?: boolean;
-  hasProbiotics?: boolean;
-  weight: string;
-  shopifyVariantId?: string;
-  handle?: string;
-}
-
 const AllProduct = () => {
-  const [products, setProducts] = useState<ProductCardProps[]>([]);
+  const [products, setProducts] = useState<ShopifyProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [hasNextPage, setHasNextPage] = useState(false);
   const [endCursor, setEndCursor] = useState<string | undefined>();
-
-  const mapShopifyToProductCard = (
-    shopifyProduct: ShopifyProduct
-  ): ProductCardProps => {
-    const firstVariant = shopifyProduct.variants.edges[0]?.node;
-    const mainImage =
-      shopifyProduct.images.edges[0]?.node.url ||
-      "/images/product-placeholder.png";
-    const hoverImage = shopifyProduct.images.edges[1]?.node.url || mainImage;
-
-    // Extract features from tags
-    const tags = shopifyProduct.tags.map((tag) => tag.toLowerCase());
-
-    return {
-      id: shopifyProduct.id,
-      title: shopifyProduct.title,
-      price:
-        firstVariant?.price.amount ||
-        shopifyProduct.priceRange.minVariantPrice.amount,
-      rating: undefined, // Shopify doesn't provide ratings by default
-      reviewCount: undefined,
-      images: {
-        main: mainImage,
-        hover: hoverImage,
-      },
-      hasAntioxidants:
-        tags.includes("antioxidants") || tags.includes("anti-oxidants"),
-      hasProbiotics: tags.includes("probiotics"),
-      weight: "40 GM", // Default weight, you can extract from product title or metafields
-      shopifyVariantId: firstVariant?.id,
-      handle: shopifyProduct.handle,
-    };
-  };
 
   const fetchProducts = async (after?: string) => {
     try {
@@ -68,14 +18,12 @@ const AllProduct = () => {
 
       const response = await shopifyApi.getProducts(20, after);
 
-      const mappedProducts = response.products.map(mapShopifyToProductCard);
-
       if (after) {
         // Loading more products
-        setProducts((prev) => [...prev, ...mappedProducts]);
+        setProducts((prev) => [...prev, ...response.products]);
       } else {
         // Initial load
-        setProducts(mappedProducts);
+        setProducts(response.products);
       }
 
       setHasNextPage(response.pageInfo.hasNextPage);

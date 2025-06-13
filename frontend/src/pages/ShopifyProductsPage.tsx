@@ -1,83 +1,253 @@
 // src/pages/ShopifyProductsPage.tsx
 import React, { useState } from "react";
-import {
-  useShopifyProducts,
-  useShopifyCollectionProducts,
-} from "../hooks/useShopifyProducts";
+import { useShopifyProducts } from "../hooks/useShopifyProducts";
 import { useShopifyCart } from "../context/ShopifyCartContext";
 import type { ShopifyProduct } from "../api/shopifyApi";
-import { FiShoppingCart, FiLoader } from "react-icons/fi";
+import {
+  FiShoppingCart,
+  FiLoader,
+  FiAlertCircle,
+  FiRefreshCw,
+} from "react-icons/fi";
 
 const ShopifyProductsPage: React.FC = () => {
-  const { products, loading, error, hasNextPage, loadMore } =
+  const { products, loading, error, hasNextPage, loadMore, refetch } =
     useShopifyProducts(12);
   const { addToCart, loading: cartLoading } = useShopifyCart();
   const [addingProductId, setAddingProductId] = useState<string | null>(null);
 
-  const formatPrice = (amount: string, currencyCode: string = "INR") => {
-    return new Intl.NumberFormat("en-IN", {
-      style: "currency",
-      currency: currencyCode,
-    }).format(parseFloat(amount));
+  // Enhanced price formatting with better error handling
+  const formatPrice = (
+    amount: string | number,
+    currencyCode: string = "INR"
+  ): string => {
+    try {
+      const numericAmount =
+        typeof amount === "string" ? parseFloat(amount) : amount;
+
+      if (isNaN(numericAmount) || numericAmount < 0) {
+        console.warn("⚠️ Invalid price amount:", amount);
+        return "Price unavailable";
+      }
+
+      return new Intl.NumberFormat("en-IN", {
+        style: "currency",
+        currency: currencyCode,
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2,
+      }).format(numericAmount);
+    } catch (error) {
+      console.error("❌ Error formatting price:", error);
+      return "Price unavailable";
+    }
   };
 
+  // Enhanced image URL extraction
   const getImageUrl = (product: ShopifyProduct): string => {
-    return (
-      product.images.edges[0]?.node.url ||
-      "https://via.placeholder.com/300x300?text=Product"
-    );
+    const imageUrl = product.images?.edges?.[0]?.node?.url;
+
+    if (imageUrl && imageUrl.startsWith("http")) {
+      return imageUrl;
+    }
+
+    console.warn("⚠️ No valid image found for product:", product.title);
+    return "/api/placeholder/300/300";
+  };
+
+  // Enhanced product validation
+  const getProductInfo = (product: ShopifyProduct) => {
+    const firstVariant = product.variants?.edges?.[0]?.node;
+
+    // Enhanced availability check
+    const productAvailable = product.availableForSale ?? false;
+    const variantAvailable = firstVariant?.availableForSale ?? false;
+    const hasVariantId = !!firstVariant?.id;
+    const isAvailable = productAvailable && variantAvailable && hasVariantId;
+
+    // Enhanced price extraction
+    let currentPrice = "Price unavailable";
+    let comparePrice: string | null = null;
+
+    if (firstVariant?.price?.amount) {
+      currentPrice = formatPrice(
+        firstVariant.price.amount,
+        firstVariant.price.currencyCode || "INR"
+      );
+
+      if (firstVariant.compareAtPrice?.amount) {
+        comparePrice = formatPrice(
+          firstVariant.compareAtPrice.amount,
+          firstVariant.compareAtPrice.currencyCode || "INR"
+        );
+      }
+    }
+
+    console.log("🔍 Product Info Debug:", {
+      title: product.title,
+      isAvailable,
+      productAvailable,
+      variantAvailable,
+      hasVariantId,
+      currentPrice,
+      comparePrice,
+      variantId: firstVariant?.id,
+    });
+
+    return {
+      firstVariant,
+      isAvailable,
+      currentPrice,
+      comparePrice,
+    };
   };
 
   const handleAddToCart = async (product: ShopifyProduct) => {
-    const firstVariant = product.variants.edges[0]?.node;
-    if (!firstVariant) {
+    const { firstVariant, isAvailable } = getProductInfo(product);
+
+    if (!firstVariant?.id) {
+      console.error("❌ No variant ID available for:", product.title);
       alert("Product variant not available");
       return;
     }
 
+    if (!isAvailable) {
+      console.warn("⚠️ Product not available:", product.title);
+      alert("This product is currently out of stock");
+      return;
+    }
+
     setAddingProductId(product.id);
+
     try {
+      console.log("🛒 Adding to cart:", {
+        productTitle: product.title,
+        variantId: firstVariant.id,
+        quantity: 1,
+      });
+
       await addToCart(firstVariant.id, 1);
+      console.log("✅ Successfully added to cart:", product.title);
     } catch (err) {
-      console.error("Failed to add to cart:", err);
-      alert("Failed to add product to cart");
+      console.error("❌ Failed to add to cart:", err);
+      const errorMessage =
+        err instanceof Error ? err.message : "Failed to add product to cart";
+      alert(`Error: ${errorMessage}`);
     } finally {
       setAddingProductId(null);
     }
   };
 
+  // Loading state
   if (loading && products.length === 0) {
     return (
       <div
         style={{
           display: "flex",
+          flexDirection: "column",
           justifyContent: "center",
           alignItems: "center",
           height: "50vh",
           fontSize: "18px",
+          gap: "20px",
         }}
       >
         <FiLoader
-          style={{ animation: "spin 1s linear infinite", marginRight: "10px" }}
+          style={{ animation: "spin 1s linear infinite", fontSize: "32px" }}
         />
-        Loading products...
+        <div>Loading products...</div>
+        <div style={{ fontSize: "14px", color: "#666" }}>
+          This may take a few moments
+        </div>
       </div>
     );
   }
 
+  // Error state with retry option
   if (error) {
     return (
       <div
         style={{
           display: "flex",
+          flexDirection: "column",
           justifyContent: "center",
           alignItems: "center",
           height: "50vh",
           color: "#dc3545",
           fontSize: "18px",
+          gap: "20px",
         }}
       >
-        Error: {error}
+        <FiAlertCircle style={{ fontSize: "48px" }} />
+        <div>Error loading products</div>
+        <div
+          style={{ fontSize: "14px", textAlign: "center", maxWidth: "400px" }}
+        >
+          {error}
+        </div>
+        <button
+          onClick={refetch}
+          style={{
+            padding: "10px 20px",
+            backgroundColor: "#007bff",
+            color: "white",
+            border: "none",
+            borderRadius: "6px",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+          }}
+        >
+          <FiRefreshCw />
+          Try Again
+        </button>
+      </div>
+    );
+  }
+
+  // No products state
+  if (!loading && products.length === 0) {
+    return (
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "center",
+          alignItems: "center",
+          height: "50vh",
+          fontSize: "18px",
+          gap: "20px",
+        }}
+      >
+        <div>No products found</div>
+        <div
+          style={{
+            fontSize: "14px",
+            color: "#666",
+            textAlign: "center",
+            maxWidth: "400px",
+          }}
+        >
+          It looks like there are no products available in your Shopify store,
+          or they haven't been published to the storefront API yet.
+        </div>
+        <button
+          onClick={refetch}
+          style={{
+            padding: "10px 20px",
+            backgroundColor: "#007bff",
+            color: "white",
+            border: "none",
+            borderRadius: "6px",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+          }}
+        >
+          <FiRefreshCw />
+          Refresh
+        </button>
       </div>
     );
   }
@@ -94,6 +264,22 @@ const ShopifyProductsPage: React.FC = () => {
         Our Products
       </h1>
 
+      {/* Debug info in development */}
+      {process.env.NODE_ENV === "development" && (
+        <div
+          style={{
+            marginBottom: "20px",
+            padding: "10px",
+            backgroundColor: "#f8f9fa",
+            border: "1px solid #dee2e6",
+            borderRadius: "4px",
+            fontSize: "12px",
+          }}
+        >
+          <strong>Debug Info:</strong> {products.length} products loaded
+        </div>
+      )}
+
       <div
         style={{
           display: "grid",
@@ -103,7 +289,8 @@ const ShopifyProductsPage: React.FC = () => {
         }}
       >
         {products.map((product) => {
-          const firstVariant = product.variants.edges[0]?.node;
+          const { firstVariant, isAvailable, currentPrice, comparePrice } =
+            getProductInfo(product);
           const isAdding = addingProductId === product.id;
 
           return (
@@ -146,8 +333,14 @@ const ShopifyProductsPage: React.FC = () => {
                     height: "100%",
                     objectFit: "cover",
                   }}
+                  onError={(e) => {
+                    console.warn("⚠️ Image failed to load for:", product.title);
+                    e.currentTarget.src = "/api/placeholder/300/300";
+                  }}
                 />
-                {!product.availableForSale && (
+
+                {/* Enhanced stock badge */}
+                {!isAvailable && (
                   <div
                     style={{
                       position: "absolute",
@@ -161,7 +354,30 @@ const ShopifyProductsPage: React.FC = () => {
                       fontWeight: "600",
                     }}
                   >
-                    SOLD OUT
+                    {!product.availableForSale
+                      ? "UNAVAILABLE"
+                      : !firstVariant?.availableForSale
+                      ? "OUT OF STOCK"
+                      : "NOT AVAILABLE"}
+                  </div>
+                )}
+
+                {/* Sale badge */}
+                {comparePrice && isAvailable && (
+                  <div
+                    style={{
+                      position: "absolute",
+                      top: "10px",
+                      left: "10px",
+                      background: "#28a745",
+                      color: "white",
+                      padding: "4px 8px",
+                      borderRadius: "4px",
+                      fontSize: "12px",
+                      fontWeight: "600",
+                    }}
+                  >
+                    SALE
                   </div>
                 )}
               </div>
@@ -184,7 +400,7 @@ const ShopifyProductsPage: React.FC = () => {
                 </h3>
 
                 <div style={{ marginBottom: "15px" }}>
-                  {firstVariant?.compareAtPrice && (
+                  {comparePrice && (
                     <span
                       style={{
                         fontSize: "14px",
@@ -193,19 +409,20 @@ const ShopifyProductsPage: React.FC = () => {
                         marginRight: "8px",
                       }}
                     >
-                      {formatPrice(firstVariant.compareAtPrice.amount)}
+                      {comparePrice}
                     </span>
                   )}
                   <span
                     style={{
                       fontSize: "20px",
                       fontWeight: "700",
-                      color: "#007bff",
+                      color:
+                        currentPrice === "Price unavailable"
+                          ? "#dc3545"
+                          : "#007bff",
                     }}
                   >
-                    {firstVariant
-                      ? formatPrice(firstVariant.price.amount)
-                      : "Price unavailable"}
+                    {currentPrice}
                   </span>
                 </div>
 
@@ -225,53 +442,54 @@ const ShopifyProductsPage: React.FC = () => {
                   {product.description || "No description available"}
                 </p>
 
+                {/* Debug info in development */}
+                {process.env.NODE_ENV === "development" && (
+                  <div
+                    style={{
+                      fontSize: "10px",
+                      color: "#666",
+                      marginBottom: "10px",
+                      padding: "5px",
+                      backgroundColor: "#f8f9fa",
+                      borderRadius: "3px",
+                    }}
+                  >
+                    ID: {product.id?.split("/").pop()}
+                    <br />
+                    Available: {isAvailable ? "Yes" : "No"}
+                    <br />
+                    Variants: {product.variants?.edges?.length || 0}
+                  </div>
+                )}
+
                 <button
                   onClick={() => handleAddToCart(product)}
-                  disabled={
-                    !product.availableForSale ||
-                    !firstVariant?.availableForSale ||
-                    isAdding ||
-                    cartLoading
-                  }
+                  disabled={!isAvailable || isAdding || cartLoading}
                   style={{
                     width: "100%",
                     padding: "12px",
-                    background:
-                      product.availableForSale && firstVariant?.availableForSale
-                        ? "#007bff"
-                        : "#6c757d",
+                    background: isAvailable ? "#007bff" : "#6c757d",
                     color: "white",
                     border: "none",
                     borderRadius: "8px",
                     fontSize: "16px",
                     fontWeight: "600",
                     cursor:
-                      product.availableForSale &&
-                      firstVariant?.availableForSale &&
-                      !isAdding
-                        ? "pointer"
-                        : "not-allowed",
+                      isAvailable && !isAdding ? "pointer" : "not-allowed",
                     transition: "background-color 0.2s",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
                     gap: "8px",
+                    opacity: isAdding || cartLoading ? 0.7 : 1,
                   }}
                   onMouseEnter={(e) => {
-                    if (
-                      product.availableForSale &&
-                      firstVariant?.availableForSale &&
-                      !isAdding
-                    ) {
+                    if (isAvailable && !isAdding) {
                       e.currentTarget.style.backgroundColor = "#0056b3";
                     }
                   }}
                   onMouseLeave={(e) => {
-                    if (
-                      product.availableForSale &&
-                      firstVariant?.availableForSale &&
-                      !isAdding
-                    ) {
+                    if (isAvailable && !isAdding) {
                       e.currentTarget.style.backgroundColor = "#007bff";
                     }
                   }}
@@ -283,8 +501,7 @@ const ShopifyProductsPage: React.FC = () => {
                       />
                       Adding...
                     </>
-                  ) : !product.availableForSale ||
-                    !firstVariant?.availableForSale ? (
+                  ) : !isAvailable ? (
                     "Out of Stock"
                   ) : (
                     <>
@@ -314,16 +531,15 @@ const ShopifyProductsPage: React.FC = () => {
               fontWeight: "600",
               cursor: loading ? "not-allowed" : "pointer",
               opacity: loading ? 0.6 : 1,
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              margin: "0 auto",
             }}
           >
             {loading ? (
               <>
-                <FiLoader
-                  style={{
-                    animation: "spin 1s linear infinite",
-                    marginRight: "8px",
-                  }}
-                />
+                <FiLoader style={{ animation: "spin 1s linear infinite" }} />
                 Loading...
               </>
             ) : (

@@ -13,47 +13,76 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
   const [isAddingToCart, setIsAddingToCart] = useState(false);
   const { addToCart } = useShopifyCart();
 
-  // Debug logging to see what data we're getting
-  console.log("ProductCard received product:", {
+  // Enhanced debug logging
+  console.log("🔍 ProductCard Debug - Full Product Data:", {
     id: product?.id,
     title: product?.title,
-    images: product?.images,
-    variants: product?.variants,
     availableForSale: product?.availableForSale,
+    images: product?.images?.edges?.length || 0,
+    variants: product?.variants?.edges?.length || 0,
+    firstVariant: product?.variants?.edges?.[0]?.node,
+    priceRange: product?.priceRange,
   });
 
-  // Better placeholder image - using a data URL for a simple gray placeholder
-  const PLACEHOLDER_IMAGE =
-    "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjBmMGYwIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzk5OTk5OSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPk5vIEltYWdlPC90ZXh0Pjwvc3ZnPg==";
+  // Better placeholder image
+  const PLACEHOLDER_IMAGE = "/api/placeholder/300/300";
 
   // Safely check if product exists
   if (!product) {
-    console.warn("ProductCard: No product data provided");
+    console.warn("❌ ProductCard: No product data provided");
     return null;
   }
 
-  // Get the first available variant with proper null checks
+  // Get the first variant with enhanced safety checks
   const firstVariant = product.variants?.edges?.[0]?.node;
-  const isAvailable =
-    product.availableForSale && (firstVariant?.availableForSale ?? false);
 
-  // Get product images with proper access to Shopify structure
-  const mainImage = product.images?.edges?.[0]?.node?.url || PLACEHOLDER_IMAGE;
-  const hoverImage = product.images?.edges?.[1]?.node?.url || mainImage;
+  // Enhanced availability check with detailed logging
+  const productAvailable = product.availableForSale ?? false;
+  const variantAvailable = firstVariant?.availableForSale ?? false;
+  const hasVariantId = !!firstVariant?.id;
+  const isAvailable = productAvailable && variantAvailable && hasVariantId;
 
-  console.log("ProductCard images:", {
-    mainImage,
-    hoverImage,
-    hasImages: product.images?.edges?.length > 0,
+  console.log("🔍 Availability Check:", {
+    productTitle: product.title,
+    productAvailable,
+    variantAvailable,
+    hasVariantId,
+    finalAvailable: isAvailable,
+    variantId: firstVariant?.id,
   });
 
-  // Format price using Intl for proper currency formatting
-  const formatPrice = (amount: string, currencyCode: string = "INR") => {
+  // Enhanced image handling
+  const getProductImage = (index: number = 0): string => {
+    const imageUrl = product.images?.edges?.[index]?.node?.url;
+    if (imageUrl && imageUrl.startsWith("http")) {
+      return imageUrl;
+    }
+    console.warn(`⚠️ Invalid or missing image for ${product.title}:`, imageUrl);
+    return PLACEHOLDER_IMAGE;
+  };
+
+  const mainImage = getProductImage(0);
+  const hoverImage =
+    getProductImage(1) !== PLACEHOLDER_IMAGE ? getProductImage(1) : mainImage;
+
+  console.log("🖼️ Image URLs:", {
+    mainImage,
+    hoverImage,
+    totalImages: product.images?.edges?.length || 0,
+  });
+
+  // Enhanced price formatting with better error handling
+  const formatPrice = (
+    amount: string | number,
+    currencyCode: string = "INR"
+  ): string => {
     try {
-      const numericAmount = parseFloat(amount);
-      if (isNaN(numericAmount)) {
-        console.warn("Invalid price amount:", amount);
-        return `₹${amount}`;
+      const numericAmount =
+        typeof amount === "string" ? parseFloat(amount) : amount;
+
+      if (isNaN(numericAmount) || numericAmount < 0) {
+        console.warn("⚠️ Invalid price amount:", amount);
+        return "Price unavailable";
       }
 
       return new Intl.NumberFormat("en-IN", {
@@ -63,59 +92,85 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
         maximumFractionDigits: 2,
       }).format(numericAmount);
     } catch (error) {
-      console.warn("Error formatting price:", error);
-      return `₹${amount}`;
+      console.error("❌ Error formatting price:", error, {
+        amount,
+        currencyCode,
+      });
+      return "Price unavailable";
     }
   };
 
-  // Get display price with comprehensive safety checks
-  let currentPrice = "Price unavailable";
-  let comparePrice: string | null = null;
+  // Enhanced price extraction with multiple fallbacks
+  const getPriceInfo = () => {
+    // Try variant price first
+    if (firstVariant?.price?.amount) {
+      const currentPrice = formatPrice(
+        firstVariant.price.amount,
+        firstVariant.price.currencyCode || "INR"
+      );
 
-  if (firstVariant?.price?.amount) {
-    currentPrice = formatPrice(
-      firstVariant.price.amount,
-      firstVariant.price.currencyCode || "INR"
-    );
-    console.log("ProductCard current price:", currentPrice);
-  } else {
-    console.warn("No price found for product:", product.title);
-  }
+      const comparePrice = firstVariant.compareAtPrice?.amount
+        ? formatPrice(
+            firstVariant.compareAtPrice.amount,
+            firstVariant.compareAtPrice.currencyCode || "INR"
+          )
+        : null;
 
-  if (firstVariant?.compareAtPrice?.amount) {
-    comparePrice = formatPrice(
-      firstVariant.compareAtPrice.amount,
-      firstVariant.compareAtPrice.currencyCode || "INR"
-    );
-  }
+      console.log("💰 Price from variant:", { currentPrice, comparePrice });
+      return { currentPrice, comparePrice };
+    }
 
-  console.log("ProductCard pricing:", {
-    currentPrice,
-    comparePrice,
-    rawPrice: firstVariant?.price,
-    rawComparePrice: firstVariant?.compareAtPrice,
-  });
+    // Fallback to price range
+    if (product.priceRange?.minVariantPrice?.amount) {
+      const currentPrice = formatPrice(
+        product.priceRange.minVariantPrice.amount,
+        product.priceRange.minVariantPrice.currencyCode || "INR"
+      );
 
-  // Handle add to cart
+      console.log("💰 Price from range:", { currentPrice });
+      return { currentPrice, comparePrice: null };
+    }
+
+    console.warn("⚠️ No price found for product:", product.title);
+    return { currentPrice: "Price unavailable", comparePrice: null };
+  };
+
+  const { currentPrice, comparePrice } = getPriceInfo();
+
+  // Enhanced cart handling
   const handleAddToCart = async (e: React.MouseEvent) => {
     e.preventDefault();
 
-    if (!firstVariant?.id || !isAvailable) {
-      console.warn("Product variant not available:", {
-        variantId: firstVariant?.id,
-        isAvailable,
+    if (!firstVariant?.id) {
+      console.error("❌ No variant ID available for:", product.title);
+      alert("Product variant not available");
+      return;
+    }
+
+    if (!isAvailable) {
+      console.warn("⚠️ Product not available:", {
         productTitle: product.title,
+        productAvailable,
+        variantAvailable,
+        hasVariantId,
       });
+      alert("This product is currently out of stock");
       return;
     }
 
     setIsAddingToCart(true);
 
     try {
+      console.log("🛒 Adding to cart:", {
+        productTitle: product.title,
+        variantId: firstVariant.id,
+        quantity: 1,
+      });
+
       await addToCart(firstVariant.id, 1);
-      console.log("✅ Added to cart:", product.title);
+      console.log("✅ Successfully added to cart:", product.title);
     } catch (error) {
-      console.error("Failed to add to cart:", error);
+      console.error("❌ Failed to add to cart:", error);
       const errorMessage =
         error instanceof Error ? error.message : "Failed to add to cart";
       alert(`Error: ${errorMessage}`);
@@ -126,10 +181,14 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
     }
   };
 
-  // Handle image error
+  // Enhanced image error handling
   const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>) => {
-    console.warn("Image failed to load:", e.currentTarget.src);
+    console.warn("⚠️ Image failed to load:", e.currentTarget.src);
     e.currentTarget.src = PLACEHOLDER_IMAGE;
+  };
+
+  const handleImageLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
+    console.log("✅ Image loaded successfully:", e.currentTarget.src);
   };
 
   // Generate product URL
@@ -151,22 +210,25 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
               className={styles.productImage}
               loading="lazy"
               onError={handleImageError}
-              onLoad={() =>
-                console.log(
-                  "Image loaded successfully:",
-                  isHovered ? hoverImage : mainImage
-                )
-              }
+              onLoad={handleImageLoad}
             />
           </a>
 
-          {/* Out of Stock Badge */}
+          {/* Enhanced Stock Badge */}
           {!isAvailable && (
-            <div className={styles.outOfStockBadge}>Out of Stock</div>
+            <div className={styles.outOfStockBadge}>
+              {!productAvailable
+                ? "Unavailable"
+                : !variantAvailable
+                ? "Out of Stock"
+                : "Not Available"}
+            </div>
           )}
 
           {/* Sale Badge */}
-          {comparePrice && <div className={styles.saleBadge}>Sale</div>}
+          {comparePrice && isAvailable && (
+            <div className={styles.saleBadge}>Sale</div>
+          )}
         </div>
 
         {/* Product Content */}
@@ -185,15 +247,23 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
             <div className={styles.vendor}>by {product.vendor}</div>
           )}
 
-          {/* Price Container */}
+          {/* Enhanced Price Container */}
           <div className={styles.priceContainer}>
             {comparePrice && (
               <span className={styles.comparePrice}>{comparePrice}</span>
             )}
-            <span className={styles.currentPrice}>{currentPrice}</span>
+            <span
+              className={styles.currentPrice}
+              style={{
+                color:
+                  currentPrice === "Price unavailable" ? "#dc3545" : undefined,
+              }}
+            >
+              {currentPrice}
+            </span>
           </div>
 
-          {/* Product Tags (optional) */}
+          {/* Product Tags */}
           {product.tags && product.tags.length > 0 && (
             <div className={styles.tagsContainer}>
               {product.tags.slice(0, 2).map((tag) => (
@@ -204,15 +274,26 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
             </div>
           )}
 
-          {/* Variant Options Info (optional) */}
+          {/* Enhanced Variant Info */}
           {product.variants?.edges && product.variants.edges.length > 1 && (
             <div className={styles.variantInfo}>
               {product.variants.edges.length} options available
             </div>
           )}
+
+          {/* Debug Info (remove in production) */}
+          {process.env.NODE_ENV === "development" && (
+            <div style={{ fontSize: "10px", color: "#666", marginTop: "5px" }}>
+              ID: {product.id?.split("/").pop()}
+              <br />
+              Available: {isAvailable ? "Yes" : "No"}
+              <br />
+              Variants: {product.variants?.edges?.length || 0}
+            </div>
+          )}
         </div>
 
-        {/* Add to Cart Button */}
+        {/* Enhanced Add to Cart Button */}
         <div className={styles.buttonContainer}>
           <button
             type="button"
@@ -220,7 +301,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
               isAddingToCart ? styles.addedToCart : ""
             } ${!isAvailable ? styles.disabled : ""}`}
             onClick={handleAddToCart}
-            disabled={isAddingToCart || !isAvailable || !firstVariant?.id}
+            disabled={isAddingToCart || !isAvailable}
             aria-label={
               isAddingToCart
                 ? "Adding to cart..."
@@ -232,7 +313,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
             <span>
               {isAddingToCart
                 ? "Added to cart!"
-                : !isAvailable || !firstVariant?.id
+                : !isAvailable
                 ? "Unavailable"
                 : "Add to cart"}
             </span>
